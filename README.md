@@ -26,7 +26,7 @@ import (
 )
 
 func main() {
-	intoSentences := 3s
+	intoSentences := 3
 	textB, _ := ioutil.ReadFile("../sample.txt")
 	text := string(textB)
 	tldr.Set(tldr.DAMPING, tldr.TOLERANCE, tldr.THRESHOLD, tldr.ALGORITHM, "hamming")
