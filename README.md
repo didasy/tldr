@@ -39,7 +39,7 @@ func main() {
 Or just run sample.go in the test directory.
 
 ### Dependencies?
-tldr depends on (pagerank)[https://github.com/dcadenas/pagerank] package, and you can install it with `go get github.com/dcadenas/pagerank`.
+tldr depends on [pagerank](https://github.com/dcadenas/pagerank) package, and you can install it with `go get github.com/dcadenas/pagerank`.
 
 ### License?
 Check the LICENSE file. tldr: MIT.
