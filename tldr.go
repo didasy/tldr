@@ -3,16 +3,14 @@ Dependencies:
   go get github.com/dcadenas/pagerank
 
 BUG : 
-1	if there is no space before \n, throw index out of range error from createNodes function.
-	Somehow a word doesn't register on the dict and it cause the error because if not found in dict it returns 0.
+1. if there is no space before \n, throw index out of range error from createNodes function. Somehow a word doesn't register on the dict and it cause the error because if not found in dict it returns 0.
 
 FIX :
-1	Added some more parameters at createDictionary in the if decision in the strings.Map, possible cleaning could also
-	be found there.
+1. Added some more parameters at createDictionary in the if decision in the strings.Map.
 
 TODO :
-1	Try Hamming distance instead of Jaccard Coeficient for calculating node weights - Done
-2	Try using idf-modified-cosine
+1. Try Hamming distance instead of Jaccard Coeficient for calculating node weights - Done
+2. Try using idf-modified-cosine
 */
 package tldr
 
