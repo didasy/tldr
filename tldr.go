@@ -6,11 +6,10 @@ BUG :
 1. if there is no space before \n, throw index out of range error from createNodes function. Somehow a word doesn't register on the dict and it cause the error because if not found in dict it returns 0.
 
 FIX :
-1. Added some more parameters at createDictionary in the if decision in the strings.Map.
+1. Added some more parameters at createDictionary in the if decision in the strings.Map, also add a guard in createNodes so if there is unknown word it would not crash.
 
 TODO :
-1. Try Hamming distance instead of Jaccard Coeficient for calculating node weights - Done
-2. Try using idf-modified-cosine
+1. Try using idf-modified-cosine
 */
 package tldr
 
@@ -188,13 +187,15 @@ func (bag *Bag) createEdges() {
 				var weight float64
 				if Weighing == "jaccard" {
 					commonElements := intersection(src.vector, dst.vector)
-					weight = float64(len(commonElements)) / ((float64(vectorLength) * 2) - float64(len(commonElements)))
+					// Old version, Jaccard's coeficient, not distance
+					// weight = float64(len(commonElements)) / ((float64(vectorLength) * 2) - float64(len(commonElements)))
+					weight = 1.0 - float64(len(commonElements)) / ((float64(vectorLength) * 2) - float64(len(commonElements)))
 				} else if Weighing == "hamming" {
 					differentElements := symetricDifference(src.vector, dst.vector)
 					weight = float64(len(differentElements))
 				} else {
 					commonElements := intersection(src.vector, dst.vector)
-					weight = float64(len(commonElements)) / ((float64(vectorLength) * 2) - float64(len(commonElements)))
+					weight = 1.0 - float64(len(commonElements)) / ((float64(vectorLength) * 2) - float64(len(commonElements)))
 				}
 				edge := &Edge{i, j, weight}
 				bag.edges = append(bag.edges, edge)
@@ -217,7 +218,10 @@ func symetricDifference(src []int, dst []int) []int {
 func intersection(src []int, dst []int) []int {
 	intersect := make(map[int]bool)
 	for i, v := range src {
-		if v > 0 && dst[i] > 0 {
+		// Old version, only counting vector value with more than 0. So we only count occurence of a word in both sentence as similarity.
+		// if v > 0 && dst[i] > 0 {
+		// this one also counting whether if a word doesn't occur on both sentences
+		if v == dst[i] {
 			intersect[i] = true
 		}
 	}
@@ -253,7 +257,10 @@ func (bag *Bag) createNodes() {
 		vector := make([]int, vectorLength)
 		// word for word now
 		for _, word := range sentence {
-			// check word dict position
+			// check word dict position, if doesn't exist, skip
+			if bag.dict[word] == 0 {
+				continue
+			}
 			// minus 1, because array started from 0 and lowest dict is 1
 			pos := bag.dict[word] - 1
 			// increment the position
@@ -341,7 +348,7 @@ func sanitizeSentences(sentences [][]string) [][]string {
 		for _, word := range sentence {
 			word = strings.ToLower(word)
 			word = strings.Map(func (r rune) rune {
-				if (r < '0' || r > '9') && (r < 'a' || r > 'z') && r != ' ' {
+				if (r < '0' || r > '9') && (r < 'a' || r > 'z') {
 					return -1
 				}
 				return r
@@ -361,11 +368,14 @@ func (bag *Bag) createDictionary(text string) {
 	// remove all non alphanumerics
 	text = strings.Map(func (r rune) rune {
 		// probably would be cleaner if use !unicode.IsDigit, !unicode.IsLetter, and !unicode.IsSpace
+		// but could also be slower
 		if (r < '0' || r > '9') && (r < 'a' || r > 'z') && r != ' ' && r != '\n' && r != '\t' && r != '\v' && r != '\f' && r!= '\r' {
 			return -1
 		}
 		return r
 	}, text)
+	// TRYING TO FIX BUG : remove all double spaces left
+	text = strings.Replace(text, "  ", " ", -1)
 	// turn it into bag of words
 	words := strings.Fields(text)
 	// turn it into dictionary
