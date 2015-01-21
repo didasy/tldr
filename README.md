@@ -11,7 +11,16 @@ There are two main steps in lexrank, weighing, and ranking. tldr have three weig
 If you want the same exact result as Flipboard auto-summarizer, use tfidf and centrality.
 
 ### Is this fast?
-Test it yourself using `go text -bench .`. The results in my computer (i3-3217U 1.8GHz) are about 40ms for jaccard, 8ms for hamming, and 80ms for tfidf per operation using sample text provided.
+Test it yourself using `go text -bench . -cpu 4 -benchtime=5s`. 
+My system has i3-3217U @1.8Ghz and this is the result (Windows, with some programs going on) :
+```
+BenchmarkSummarizeCentralityJaccard-4       2000           4086226 ns/op
+BenchmarkSummarizePageRankJaccard-4         2000           4049201 ns/op
+BenchmarkSummarizeCentralityHamming-4       2000           4059708 ns/op
+BenchmarkSummarizePageRankHamming-4         2000           4050209 ns/op
+BenchmarkSummarizeCentralityTfidf-4          100          50493720 ns/op
+BenchmarkSummarizePageRankTfIdf-4            100          50473672 ns/op
+``` 
 
 ### Installation
 `go get github.com/JesusIslam/tldr`
