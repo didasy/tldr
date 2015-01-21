@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 	"io/ioutil"
-	"github.com/JesusIslam/tldr"
+	"github.com/JesusIslam/tldr-lr"
 )
 
 const (
@@ -40,6 +40,22 @@ func TestSummarizePageRankHamming(t *testing.T) {
 	textB, _ := ioutil.ReadFile("../sample.txt")
 	text := string(textB)
 	tldr.Set(tldr.DAMPING, tldr.TOLERANCE, tldr.THRESHOLD, "pagerank", "hamming")
+	bag := tldr.New()
+	result = bag.Summarize(text, 3)
+}
+
+func TestSummarizeCentralityTfidf(t *testing.T) {
+	textB, _ := ioutil.ReadFile("../sample.txt")
+	text := string(textB)
+	tldr.Set(tldr.DAMPING, tldr.TOLERANCE, tldr.THRESHOLD, tldr.ALGORITHM, "tfidf")
+	bag := tldr.New()
+	result = bag.Summarize(text, 3)
+}
+
+func TestSummarizePageRankTfidf(t *testing.T) {
+	textB, _ := ioutil.ReadFile("../sample.txt")
+	text := string(textB)
+	tldr.Set(tldr.DAMPING, tldr.TOLERANCE, tldr.THRESHOLD, "pagerank", "tfidf")
 	bag := tldr.New()
 	result = bag.Summarize(text, 3)
 }
@@ -85,6 +101,30 @@ func BenchmarkSummarizePageRankHamming(b *testing.B) {
 	text := string(textB)
 	var r string
 	tldr.Set(tldr.DAMPING, tldr.TOLERANCE, tldr.THRESHOLD, "pagerank", "hamming")
+	for n := 0; n < b.N; n++ {
+		bag := tldr.New()
+		r = bag.Summarize(text, 3)
+	}
+	result = r
+}
+
+func BenchmarkSummarizeCentralityTfidf(b *testing.B) {
+	textB, _ := ioutil.ReadFile("../sample.txt")
+	text := string(textB)
+	var r string
+	tldr.Set(tldr.DAMPING, tldr.TOLERANCE, tldr.THRESHOLD, "centrality", "tfidf")
+	for n := 0; n < b.N; n++ {
+		bag := tldr.New()
+		r = bag.Summarize(text, 3)
+	}
+	result = r
+}
+
+func BenchmarkSummarizePageRankTfIdf(b *testing.B) {
+	textB, _ := ioutil.ReadFile("../sample.txt")
+	text := string(textB)
+	var r string
+	tldr.Set(tldr.DAMPING, tldr.TOLERANCE, tldr.THRESHOLD, "pagerank", "tfidf")
 	for n := 0; n < b.N; n++ {
 		bag := tldr.New()
 		r = bag.Summarize(text, 3)
