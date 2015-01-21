@@ -14,12 +14,12 @@ If you want the same exact result as Flipboard auto-summarizer, use tfidf and ce
 Test it yourself using `go text -bench . -cpu 4 -benchtime=5s`. 
 My system has i3-3217U @1.8Ghz and this is the result (Windows, with some programs going on) :
 ```
-BenchmarkSummarizeCentralityJaccard-4       2000           4086226 ns/op
-BenchmarkSummarizePageRankJaccard-4         2000           4049201 ns/op
-BenchmarkSummarizeCentralityHamming-4       2000           4059708 ns/op
-BenchmarkSummarizePageRankHamming-4         2000           4050209 ns/op
-BenchmarkSummarizeCentralityTfidf-4          100          50493720 ns/op
-BenchmarkSummarizePageRankTfIdf-4            100          50473672 ns/op
+BenchmarkSummarizeCentralityJaccard-4       2000           5871421 ns/op
+BenchmarkSummarizePageRankJaccard-4         1000           8261503 ns/op
+BenchmarkSummarizeCentralityHamming-4       1000           8436597 ns/op
+BenchmarkSummarizePageRankHamming-4         1000           8312549 ns/op
+BenchmarkSummarizeCentralityTfidf-4          100          67254795 ns/op
+BenchmarkSummarizePageRankTfIdf-4            100          57958655 ns/op
 ``` 
 
 ### Installation

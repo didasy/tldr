@@ -121,6 +121,11 @@ func (bag *Bag) centrality() {
 	bag.ranks = uniq
 }
 
+type Rank struct {
+	idx int
+	score float64
+}
+
 func (bag *Bag) pageRank() {
 	// first remove edges under Threshold weight
 	var newEdges []*Edge
@@ -135,33 +140,25 @@ func (bag *Bag) pageRank() {
 	for _, edge := range newEdges {
 		graph.Link(edge.src, edge.dst)
 	}
-	ranks := make(map[int]float64)
+	var ranks []*Rank
+	// ranks := make(map[int]float64)
 	graph.Rank(Damping, Tolerance, func (sentenceIndex int, rank float64) {
-		ranks[sentenceIndex] = rank
+		ranks = append(ranks, &Rank{sentenceIndex, rank})
 	})
 	// sort ranks into an array of sentence index, by rank descending
-	var idx []int
 	for i, v := range ranks {
-		highest := i
-		for j, x := range ranks {
-			if i != j && x > v {
-				highest = j
-			}
+		j := i - 1
+		for j >= 0 && ranks[j].score < v.score {
+			ranks[j+1] = ranks[j]
+			j -= 1
 		}
-		idx = append(idx, highest)
-		delete(ranks, highest)
-		if len(ranks) == 2 {
-			for l, z := range ranks {
-				for m, r := range ranks {
-					if r >= z {
-						idx = append(idx, m)
-						idx = append(idx, l)
-						delete(ranks, m)
-					}
-				}
-			}
-		}
+		ranks[j+1] = v
 	}
+	var idx []int
+	for _, v := range ranks {
+		idx = append(idx, v.idx)
+	}
+	
 	bag.ranks = idx
 }
 
