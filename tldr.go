@@ -35,7 +35,7 @@ func New() *Bag {
 
 // the default values of each settings
 const (
-	VERSION = "0.0.2"
+	VERSION = "0.1.0"
 	ALGORITHM = "centrality"
 	WEIGHING = "hamming"
 	DAMPING = 0.85
