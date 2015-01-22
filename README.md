@@ -14,12 +14,12 @@ The best combination that produced the best summaries are Hamming and centrality
 Test it yourself using `go text -bench . -cpu 4 -benchtime=5s`. 
 My system has i3-3217U @1.8Ghz and this is the result (Windows, with some programs going on) :
 ```
-BenchmarkSummarizeCentralityJaccard-4       2000           5871421 ns/op
-BenchmarkSummarizePageRankJaccard-4         1000           8261503 ns/op
-BenchmarkSummarizeCentralityHamming-4       1000           8436597 ns/op
-BenchmarkSummarizePageRankHamming-4         1000           8312549 ns/op
-BenchmarkSummarizeCentralityTfidf-4          100          67254795 ns/op
-BenchmarkSummarizePageRankTfIdf-4            100          57958655 ns/op
+BenchmarkSummarizeCentralityJaccard-4       2000           3734992 ns/op
+BenchmarkSummarizePageRankJaccard-4         2000           3492330 ns/op
+BenchmarkSummarizeCentralityHamming-4       2000           3581389 ns/op
+BenchmarkSummarizePageRankHamming-4         2000           3434289 ns/op
+BenchmarkSummarizeCentralityTfidf-4          100          54566415 ns/op
+BenchmarkSummarizePageRankTfIdf-4            100          56237523 ns/op
 ``` 
 
 ### Installation

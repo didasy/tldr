@@ -37,7 +37,7 @@ func New() *Bag {
 
 // the default values of each settings
 const (
-	VERSION = "0.1.0"
+	VERSION = "0.1.1"
 	ALGORITHM = "centrality"
 	WEIGHING = "hamming"
 	DAMPING = 0.85
@@ -63,8 +63,12 @@ func Set(d, t, th float64, alg, w string) {
 }
 
 func (bag *Bag) Summarize(text string, num int) string {
-	bag.createOriginalSentences(text)
-	bag.createSentences(text)
+	createOriginalSentencesChan := make(chan bool)
+	createSentencesChan := make(chan bool)
+	go bag.createOriginalSentences(text, createOriginalSentencesChan)
+	go bag.createSentences(text, createSentencesChan)
+	<- createOriginalSentencesChan
+	<- createSentencesChan
 	if Weighing == "tfidf" {
 		bag.createTfIdfModifiedCosineSimilarityEdges()
 	} else if Weighing == "jarowinkler" {
@@ -381,20 +385,34 @@ func (bag *Bag) createTfIdfModifiedCosineSimilarityEdges() {
 				// transform to seq dict
 				seqDict := createSeqDict(bag.dict)
 				// find tf, idf and tfidf of their words
-				srcTfVector := createTfVector(srcS, seqDict)
-				dstTfVector := createTfVector(dstS, seqDict)
-				idf := createIdf(srcS, dstS, seqDict)
-				srcTfIdfVector := createTfIdfVector(srcTfVector, idf)
-				dstTfIdfVector := createTfIdfVector(dstTfVector, idf)
+				srcDoneChan := make(chan []float64)
+				dstDoneChan := make(chan []float64)
+				idfDoneChan := make(chan []float64)
+				go createTfVector(srcS, seqDict, srcDoneChan)
+				go createTfVector(dstS, seqDict, dstDoneChan)
+				go createIdf(srcS, dstS, seqDict, idfDoneChan)
+				srcTfVector := <- srcDoneChan
+				dstTfVector := <- dstDoneChan
+				idf := <- idfDoneChan
+				go createTfIdfVector(srcTfVector, idf, srcDoneChan)
+				go createTfIdfVector(dstTfVector, idf, dstDoneChan)
+				srcTfIdfVector := <- srcDoneChan
+				dstTfIdfVector := <- dstDoneChan
 				// https://janav.wordpress.com/2013/10/27/tf-idf-and-cosine-similarity/ for more explanation
 				// find the dot-product-idf-modified of them
-				dotProduct := createDotProduct(srcTfIdfVector, dstTfIdfVector)
+				dotProductDoneChan := make(chan float64)
+				go createDotProduct(srcTfIdfVector, dstTfIdfVector, dotProductDoneChan)
 				// find the sum of magnitude of each tfidf in each sentences
-				srcM := createMagnitude(srcTfIdfVector)
-				dstM := createMagnitude(dstTfIdfVector)
+				srcMagnitudeDoneChan := make(chan float64)
+				dstMagnitudeDoneChan := make(chan float64)
+				go createMagnitude(srcTfIdfVector, srcMagnitudeDoneChan)
+				go createMagnitude(dstTfIdfVector, dstMagnitudeDoneChan)
 				// now calculate tf-idf-modified-cosine-similarity between the sentences
 				// http://en.wikipedia.org/wiki/Cosine_similarity exactly like this, but switch tf with tfidf
 				// http://upload.wikimedia.org/math/f/3/6/f369863aa2814d6e283f859986a1574d.png for the formula
+				dotProduct := <- dotProductDoneChan
+				srcM := <- srcMagnitudeDoneChan
+				dstM := <- dstMagnitudeDoneChan
 				weight = dotProduct / (srcM * dstM)
 				// put them into the bag
 				edge := &Edge{i, j, weight}
@@ -404,7 +422,7 @@ func (bag *Bag) createTfIdfModifiedCosineSimilarityEdges() {
 	}
 }
 
-func createTfVector(sen, seqDict []string) []float64 {
+func createTfVector(sen, seqDict []string, done chan<- []float64) {
 	vector := make([]float64, len(seqDict))
 	for i, term := range seqDict {
 		for _, word := range sen {
@@ -418,10 +436,10 @@ func createTfVector(sen, seqDict []string) []float64 {
 	for i, count := range vector {
 		vector[i] = count / senTermsCount
 	}
-	return vector
+	done <- vector
 }
 
-func createIdf(src, dst, seqDict []string) []float64 {
+func createIdf(src, dst, seqDict []string, done chan<- []float64) {
 	// count occurence of each word in each sentence
 	idf := make([]float64, len(seqDict))
 	for i, term := range seqDict {
@@ -444,32 +462,32 @@ func createIdf(src, dst, seqDict []string) []float64 {
 	for i, count := range idf {
 		idf[i] = math.Log(2.0 / count)
 	}
-	return idf
+	done <- idf
 }
 
-func createTfIdfVector(vector, idf []float64) []float64 {
+func createTfIdfVector(vector, idf []float64, done chan<- []float64) {
 	tfidf := make([]float64, len(vector))
 	for i, tf := range vector {
 		tfidf[i] = tf * idf[i]
 	}
-	return tfidf
+	done <- tfidf
 }
 
-func createDotProduct(srcVector, dstVector []float64) float64 {
+func createDotProduct(srcVector, dstVector []float64, done chan<- float64) {
 	var dotProduct float64
 	for i, v := range srcVector {
 		dotProduct += (v * dstVector[i])
 	}
-	return dotProduct
+	done <- dotProduct
 }
 
-func createMagnitude(vector []float64) float64 {
+func createMagnitude(vector []float64, done chan<- float64) {
 	var magnitude float64
 	for _, tfidf := range vector {
 		magnitude += (tfidf * tfidf)
 	}
 	magnitude = math.Sqrt(magnitude)
-	return magnitude
+	done <- magnitude
 }
 
 func createSeqDict(dict map[string]int) []string {
@@ -479,7 +497,6 @@ func createSeqDict(dict map[string]int) []string {
 	}
 	return seq
 }
-
 
 func (bag *Bag) createEdges() {
 	for i, src := range bag.nodes {
@@ -575,7 +592,7 @@ func (bag *Bag) createNodes() {
 	}
 }
 
-func (bag *Bag) createSentences(text string) {
+func (bag *Bag) createSentences(text string, done chan<- bool) {
 	// trim all spaces
 	text = strings.TrimSpace(text)
 	words := strings.Fields(text)
@@ -611,9 +628,10 @@ func (bag *Bag) createSentences(text string) {
 	sentences = uniqSentences(sentences)
 	// sanitize sentences before putting it into the bag
 	bag.sentences = sanitizeSentences(sentences)
+	done <- true
 }
 
-func (bag *Bag) createOriginalSentences(text string) {
+func (bag *Bag) createOriginalSentences(text string, done chan<- bool) {
 	// trim all spaces
 	text = strings.TrimSpace(text)
 	// tokenize text
@@ -641,6 +659,7 @@ func (bag *Bag) createOriginalSentences(text string) {
 		bagOfSentence = append(bagOfSentence, str)
 	}
 	bag.originalSentences = bagOfSentence
+	done <- true
 }
 
 func uniqSentences(sentences [][]string) [][]string {
