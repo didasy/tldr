@@ -16,7 +16,9 @@ package tldr
 import (
 	"sort"
 	"math"
+	"bytes"
 	"strings"
+	// "unicode"
 	"github.com/dcadenas/pagerank"
 )
 
@@ -61,9 +63,14 @@ func Set(d, t, th float64, alg, w string) {
 }
 
 func (bag *Bag) Summarize(text string, num int) string {
+	bag.createOriginalSentences(text)
 	bag.createSentences(text)
 	if Weighing == "tfidf" {
 		bag.createTfIdfModifiedCosineSimilarityEdges()
+	} else if Weighing == "jarowinkler" {
+		bag.createJaroWinklerEdges()
+	} else if Weighing == "ferret" {
+		bag.createByteFerretEdges()
 	} else {
 		bag.createDictionary(text)
 		bag.createNodes()
@@ -168,9 +175,200 @@ type Edge struct {
 	weight float64 // weight of the similarity between two sentences, use Jaccard Coefficient
 }
 
+// this is also experimental, using triple bytes with ferret algorithm
+func (bag *Bag) createByteFerretEdges() {
+	for i, src := range bag.originalSentences {
+		for j, dst := range bag.originalSentences {
+			if i != j {
+				// src = strings.TrimSpace(src)
+				// dst = strings.TrimSpace(dst)
+				src = strings.ToLower(src)
+				dst = strings.ToLower(dst)
+				// compact the strings
+				src = strings.Map(func (r rune) rune {
+					if (r < '0' || r > '9') && (r < 'a' || r > 'z') && r != 'ä' && r != 'ö' && r != 'ü' && r != 'ß' && r != 'é' {
+						return -1
+					}
+					return r
+				}, src)
+				dst = strings.Map(func (r rune) rune {
+					if (r < '0' || r > '9') && (r < 'a' || r > 'z') && r != 'ä' && r != 'ö' && r != 'ü' && r != 'ß' && r != 'é' {
+						return -1
+					}
+					return r
+				}, dst)
+				weight := 0.0
+				srcB := []byte(src)
+				dstB := []byte(dst)
+				var lesser []byte
+				if len(srcB) < len(dstB) {
+					lesser = srcB
+				} else {
+					lesser = dstB
+				}
+				lesserLen := len(lesser)
+				shingleLen := 3
+				exists := false
+				for i := 0; i < lesserLen-shingleLen+1; i++ {
+					exists = bytes.Contains(srcB, dstB[i:(i+shingleLen)])
+					if exists {
+						weight++
+					}
+				}
+				// this is Jaccard's similarity
+				weight = weight / ( ( float64( len(srcB) ) + float64( len(dstB) ) ) - weight )
+				edge := &Edge{i, j, weight}
+				bag.edges = append(bag.edges, edge)
+			}
+		}
+	}
+}
+
+// this is experimental, using raw sentences string instead of sanitized and tokenized one, try sanitize this
+func (bag *Bag) createJaroWinklerEdges() {
+	for i, src := range bag.originalSentences {
+		for j, dst := range bag.originalSentences {
+			if i != j {
+				// src = strings.TrimSpace(src)
+				// dst = strings.TrimSpace(dst)
+				src = strings.ToLower(src)
+				dst = strings.ToLower(dst)
+				// compact the strings
+				src = strings.Map(func (r rune) rune {
+					if (r < '0' || r > '9') && (r < 'a' || r > 'z') && r != 'ä' && r != 'ö' && r != 'ü' && r != 'ß' && r != 'é' {
+						return -1
+					}
+					return r
+				}, src)
+				dst = strings.Map(func (r rune) rune {
+					if (r < '0' || r > '9') && (r < 'a' || r > 'z') && r != 'ä' && r != 'ö' && r != 'ü' && r != 'ß' && r != 'é' {
+						return -1
+					}
+					return r
+				}, dst)
+				weight := createJaroWinklerDistance(src, dst)
+				edge := &Edge{i, j, weight}
+				bag.edges = append(bag.edges, edge)
+			}
+		}
+	}
+}
+
+/*
+Whole code adapted to Go from:
+https://github.com/NaturalNode/natural/blob/master/lib/natural/distance/jaro-winkler_distance.js
+*/
+func distance(str1 string, str2 string) float64 {
+	if len(str1) == 0 && len(str2) == 0 {
+		return 0.0
+	}
+	if str1 == str2 {
+		return 1.0
+	}
+	str1 = strings.ToLower(str1)
+	str2 = strings.ToLower(str2)
+
+	// s1 is lesser, s2 is higher
+	var s1, s2 string
+	if len(str1) <= len(str2) {
+		s1 = str1
+		s2 = str2
+	} else {
+		s1 = str2
+		s2 = str1
+	}
+
+	matchWindow := int(math.Floor(math.Max(float64(len(s1)), float64(len(s2))) / 2.0) - 1.0)
+	matches1 := make([]bool, len(s1))
+	matches2 := make([]bool, len(s2))
+	var m float64
+	var t float64
+
+	for i, v := range s1 {
+		matched := false
+		if v == rune(s2[i]) {
+			matches1[i] = true
+			matches2[i] = true
+			matched = true
+			m++
+		} else {
+			var k int
+			if i <= matchWindow {
+				k = 0
+			} else {
+				k = i - matchWindow
+			}
+			for {
+				// Guard so we would not call uninitialized index
+				var x int
+				dif := len(s2) - len(s1)
+				if dif < 2 {
+					x = 0
+				} else {
+					x = (dif - 2)
+				}
+				if k == (len(s2) - x) {
+					break
+				}
+				//
+				if v == rune(s2[k]) {
+					if !matches1[i] && !matches2[k] {
+						m++
+					}
+					matches1[i] = true
+					matches2[k] = true
+					matched = true
+				}
+				k++
+				if (k <= (i + matchWindow)) && k < len(s2) && matched {
+					break
+				}
+			}
+		}
+	}
+	
+	if m == 0 {
+		return 0.0
+	}
+
+	k := 0
+	for _, v := range s1 {
+		// guard from index out of range error
+		if k >= len(matches1) - 1 {
+			break
+		}
+		//
+		if matches1[k] {
+			for k < len(matches2) && !matches2[k] {
+				k++
+			}
+			if k < len(matches2) && v != rune(s2[k]) {
+				t++
+			}
+			k++
+		}
+	}
+
+	t = t / 2.0
+	x1 := m / float64(len(s1))
+	x2 := m / float64(len(s2))
+	return (x1 + x2 + ((m - t) / m) ) / 3
+}
+
+func createJaroWinklerDistance(s1 string, s2 string) float64 {
+	if s1 == s2 {
+		return 1
+	}
+	d := distance(s1, s2)
+	p := 0.1
+	l := 0
+	for s1[l] == s2[l] && l < 4 {
+		l++
+	}
+	return d + float64(l) * p * (1 - d)
+}
 
 func (bag *Bag) createTfIdfModifiedCosineSimilarityEdges() {
-	// goal is to fill bag.edges with 
 	// find tf of each word in each sentence in the bag.sentences
 	for i, src := range bag.originalSentences {
 		for j, dst := range bag.originalSentences {
@@ -384,6 +582,46 @@ func (bag *Bag) createSentences(text string) {
 	var sentence []string
 	var sentences [][]string
 	for _, word := range words {
+		// FIX
+		word = strings.ToLower(word)
+
+		// if there isn't . ? or !, append to sentence. If found, also append but reset the sentence
+		if strings.ContainsRune(word, '.') || strings.ContainsRune(word, '!') || strings.ContainsRune(word, '?') {
+			// FIX
+			word = strings.Map(func (r rune) rune {
+				if r == '.' || r == '!' || r == '?' {
+					return -1
+				}
+				return r
+			}, word)
+			// FIX
+			word = sanitizeWord(word)
+			sentence = append(sentence, word)
+			sentences = append(sentences, sentence)
+			sentence = []string{}
+		} else {
+			word = sanitizeWord(word)
+			sentence = append(sentence, word)
+		}
+	}
+	if len(sentence) > 0 {
+		sentences = append(sentences, sentence)
+	}
+	// remove doubled sentence
+	sentences = uniqSentences(sentences)
+	// sanitize sentences before putting it into the bag
+	bag.sentences = sanitizeSentences(sentences)
+}
+
+func (bag *Bag) createOriginalSentences(text string) {
+	// trim all spaces
+	text = strings.TrimSpace(text)
+	// tokenize text
+	words := strings.Fields(text)
+	// build sentence
+	var sentence []string
+	var sentences [][]string
+	for _, word := range words {
 		// if there isn't . ? or !, append to sentence. If found, also append but reset the sentence
 		if strings.ContainsRune(word, '.') || strings.ContainsRune(word, '!') || strings.ContainsRune(word, '?') {
 			sentence = append(sentence, word)
@@ -396,8 +634,6 @@ func (bag *Bag) createSentences(text string) {
 	if len(sentence) > 0 {
 		sentences = append(sentences, sentence)
 	}
-	// remove doubled sentence
-	sentences = uniqSentences(sentences)
 	// now flatten them
 	var bagOfSentence []string
 	for _, s := range sentences {
@@ -405,8 +641,6 @@ func (bag *Bag) createSentences(text string) {
 		bagOfSentence = append(bagOfSentence, str)
 	}
 	bag.originalSentences = bagOfSentence
-	// sanitize sentences before putting it into the bag
-	bag.sentences = sanitizeSentences(sentences)
 }
 
 func uniqSentences(sentences [][]string) [][]string {
@@ -445,16 +679,39 @@ func uniqSentences(sentences [][]string) [][]string {
 	return unique
 }
 
+func sanitizeWord(word string) string {
+	word = strings.ToLower(word)
+	var prev rune
+	word = strings.Map(func (r rune) rune {
+		// don't remove '-' if it exists after alphanumerics
+		if r == '-' && ((prev >= '0' && prev <= '9') || (prev >= 'a' && prev <= 'z') || prev == 'ä' || prev == 'ö' || prev == 'ü' || prev == 'ß' || prev == 'é') {
+			return r
+		}
+		if (r < '0' || r > '9') && (r < 'a' || r > 'z') && r != 'ä' && r != 'ö' && r != 'ü' && r != 'ß' && r != 'é' {
+			return -1
+		}
+		prev = r
+		return r
+	}, word)
+	return word
+}
+
 func sanitizeSentences(sentences [][]string) [][]string {
 	var sanitizedSentence [][]string
 	for _, sentence := range sentences {
 		var newSentence []string
 		for _, word := range sentence {
+			var prev rune
 			word = strings.ToLower(word)
 			word = strings.Map(func (r rune) rune {
-				if (r < '0' || r > '9') && (r < 'a' || r > 'z') {
+				// experimental, we don't remove '-' if it exists after alphanumerics
+				if r == '-' && ((prev >= '0' && prev <= '9') || (prev >= 'a' && prev <= 'z') || prev == 'ä' || prev == 'ö' || prev == 'ü' || prev == 'ß' || prev == 'é') {
+					return r
+				}
+				if (r < '0' || r > '9') && (r < 'a' || r > 'z') && r != 'ä' && r != 'ö' && r != 'ü' && r != 'ß' && r != 'é' {
 					return -1
 				}
+				prev = r
 				return r
 			}, word)
 			newSentence = append(newSentence, word)
@@ -470,12 +727,21 @@ func (bag *Bag) createDictionary(text string) {
 	// lowercase the text
 	text = strings.ToLower(text)
 	// remove all non alphanumerics but spaces
+	var prev rune
 	text = strings.Map(func (r rune) rune {
 		// probably would be cleaner if use !unicode.IsDigit, !unicode.IsLetter, and !unicode.IsSpace
 		// but could also be slower
-		if (r < '0' || r > '9') && (r < 'a' || r > 'z') && r != ' ' && r != '\n' && r != '\t' && r != '\v' && r != '\f' && r!= '\r' {
+		// This one is experimental, we don't remove '-' if it exists after alphanumerics
+		if r == '-' && ((prev >= '0' && prev <= '9') || (prev >= 'a' && prev <= 'z') || prev == 'ä' || prev == 'ö' || prev == 'ü' || prev == 'ß' || prev == 'é') {
+			return r
+		}
+		if (r < '0' || r > '9') && (r < 'a' || r > 'z') && r != 'ä' && r != 'ö' && r != 'ü' && r != 'ß' && r != 'é' && r != ' ' && r != '\n' && r != '\t' && r != '\v' && r != '\f' && r!= '\r' {
 			return -1
 		}
+		prev = r
+		// if !unicode.IsDigit(r) && !unicode.IsLetter(r) && !unicode.IsSpace(r) {
+		// 	return -1
+		// }
 		return r
 	}, text)
 	// TRYING TO FIX BUG : remove all double spaces left
