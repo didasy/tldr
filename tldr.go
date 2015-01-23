@@ -63,6 +63,8 @@ func Set(d, t, th float64, alg, w string) {
 func (bag *Bag) Summarize(text string, num int) string {
 	createOriginalSentencesChan := make(chan bool)
 	createSentencesChan := make(chan bool)
+	defer close(createOriginalSentencesChan)
+	defer close(createSentencesChan)
 	go bag.createOriginalSentences(text, createOriginalSentencesChan)
 	go bag.createSentences(text, createSentencesChan)
 	<- createOriginalSentencesChan
@@ -386,6 +388,9 @@ func (bag *Bag) createTfIdfModifiedCosineSimilarityEdges() {
 				srcDoneChan := make(chan []float64)
 				dstDoneChan := make(chan []float64)
 				idfDoneChan := make(chan []float64)
+				defer close(srcDoneChan)
+				defer close(dstDoneChan)
+				defer close(idfDoneChan)
 				go createTfVector(srcS, seqDict, srcDoneChan)
 				go createTfVector(dstS, seqDict, dstDoneChan)
 				go createIdf(srcS, dstS, seqDict, idfDoneChan)
@@ -399,10 +404,13 @@ func (bag *Bag) createTfIdfModifiedCosineSimilarityEdges() {
 				// https://janav.wordpress.com/2013/10/27/tf-idf-and-cosine-similarity/ for more explanation
 				// find the dot-product-idf-modified of them
 				dotProductDoneChan := make(chan float64)
+				defer close(dotProductDoneChan)
 				go createDotProduct(srcTfIdfVector, dstTfIdfVector, dotProductDoneChan)
 				// find the sum of magnitude of each tfidf in each sentences
 				srcMagnitudeDoneChan := make(chan float64)
 				dstMagnitudeDoneChan := make(chan float64)
+				defer close(srcMagnitudeDoneChan)
+				defer close(dstMagnitudeDoneChan)
 				go createMagnitude(srcTfIdfVector, srcMagnitudeDoneChan)
 				go createMagnitude(dstTfIdfVector, dstMagnitudeDoneChan)
 				// now calculate tf-idf-modified-cosine-similarity between the sentences
