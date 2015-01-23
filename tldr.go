@@ -18,7 +18,6 @@ import (
 	"math"
 	"bytes"
 	"strings"
-	// "unicode"
 	"github.com/dcadenas/pagerank"
 )
 
@@ -45,7 +44,6 @@ const (
 	THRESHOLD = 0.001
 )
 
-// Using pagerank algorithm will return many version of summary, unlike static summary result from centrality algorithm
 var (
 	Algorithm string = "centrality"
 	Weighing string = "hamming"
