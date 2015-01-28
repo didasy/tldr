@@ -1,6 +1,7 @@
 # tldr
 ### When you are too lazy to read the entire text
 ------------------------------------------------------
+[![GoDoc](https://godoc.org/github.com/JesusIslam/tldr?status.svg)](https://godoc.org/github.com/JesusIslam/tldr)
 
 ### What?
 tldr is a golang package to summarize a text automatically using [lexrank](http://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html) algorithm.
