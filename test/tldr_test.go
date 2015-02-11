@@ -18,6 +18,9 @@ func TestSummarizeCentralityJaccard(t *testing.T) {
 	tldr.Set(tldr.DAMPING, tldr.TOLERANCE, tldr.THRESHOLD, tldr.ALGORITHM, tldr.WEIGHING)
 	bag := tldr.New()
 	result = bag.Summarize(text, 3)
+	if len(result) <= 0 {
+		t.Fatal("Centrality Jaccard test failed")
+	}
 }
 
 func TestSummarizePageRankJaccard(t *testing.T) {
@@ -26,6 +29,9 @@ func TestSummarizePageRankJaccard(t *testing.T) {
 	tldr.Set(tldr.DAMPING, tldr.TOLERANCE, tldr.THRESHOLD, "pagerank", tldr.WEIGHING)
 	bag := tldr.New()
 	result = bag.Summarize(text, 3)
+	if len(result) <= 0 {
+		t.Fatal("PageRank Jaccard test failed")
+	}
 }
 
 func TestSummarizeCentralityHamming(t *testing.T) {
@@ -34,6 +40,9 @@ func TestSummarizeCentralityHamming(t *testing.T) {
 	tldr.Set(tldr.DAMPING, tldr.TOLERANCE, tldr.THRESHOLD, tldr.ALGORITHM, "hamming")
 	bag := tldr.New()
 	result = bag.Summarize(text, 3)
+	if len(result) <= 0 {
+		t.Fatal("Centrality Hamming test failed")
+	}
 }
 
 func TestSummarizePageRankHamming(t *testing.T) {
@@ -42,6 +51,9 @@ func TestSummarizePageRankHamming(t *testing.T) {
 	tldr.Set(tldr.DAMPING, tldr.TOLERANCE, tldr.THRESHOLD, "pagerank", "hamming")
 	bag := tldr.New()
 	result = bag.Summarize(text, 3)
+	if len(result) <= 0 {
+		t.Fatal("PageRank Hamming test failed")
+	}
 }
 
 func TestSummarizeCentralityTfidf(t *testing.T) {
@@ -50,6 +62,9 @@ func TestSummarizeCentralityTfidf(t *testing.T) {
 	tldr.Set(tldr.DAMPING, tldr.TOLERANCE, tldr.THRESHOLD, tldr.ALGORITHM, "tfidf")
 	bag := tldr.New()
 	result = bag.Summarize(text, 3)
+	if len(result) <= 0 {
+		t.Fatal("Centrality tfidf test failed")
+	}
 }
 
 func TestSummarizePageRankTfidf(t *testing.T) {
@@ -58,6 +73,9 @@ func TestSummarizePageRankTfidf(t *testing.T) {
 	tldr.Set(tldr.DAMPING, tldr.TOLERANCE, tldr.THRESHOLD, "pagerank", "tfidf")
 	bag := tldr.New()
 	result = bag.Summarize(text, 3)
+	if len(result) <= 0 {
+		t.Fatal("PageRank tfidf test failed")
+	}
 }
 
 func TestSummarizeCentralityByteFerret(t *testing.T) {
@@ -66,6 +84,9 @@ func TestSummarizeCentralityByteFerret(t *testing.T) {
 	tldr.Set(tldr.DAMPING, tldr.TOLERANCE, tldr.THRESHOLD, tldr.ALGORITHM, "ferret")
 	bag := tldr.New()
 	result = bag.Summarize(text, 3)
+	if len(result) <= 0 {
+		t.Fatal("Centrality byteferret test failed")
+	}
 }
 
 func TestSummarizePageRankByteFerret(t *testing.T) {
@@ -74,6 +95,9 @@ func TestSummarizePageRankByteFerret(t *testing.T) {
 	tldr.Set(tldr.DAMPING, tldr.TOLERANCE, tldr.THRESHOLD, "pagerank", "ferret")
 	bag := tldr.New()
 	result = bag.Summarize(text, 3)
+	if len(result) <= 0 {
+		t.Fatal("PageRank byteferret test failed")
+	}
 }
 
 func TestSummarizeCentralityJaroWinkler(t *testing.T) {
@@ -82,6 +106,9 @@ func TestSummarizeCentralityJaroWinkler(t *testing.T) {
 	tldr.Set(tldr.DAMPING, tldr.TOLERANCE, tldr.THRESHOLD, tldr.ALGORITHM, "jarowinkler")
 	bag := tldr.New()
 	result = bag.Summarize(text, 3)
+	if len(result) <= 0 {
+		t.Fatal("Centrality Jaro Winkler test failed")
+	}
 }
 
 func TestSummarizePageRankJaroWinkler(t *testing.T) {
@@ -90,6 +117,9 @@ func TestSummarizePageRankJaroWinkler(t *testing.T) {
 	tldr.Set(tldr.DAMPING, tldr.TOLERANCE, tldr.THRESHOLD, "pagerank", "jarowinkler")
 	bag := tldr.New()
 	result = bag.Summarize(text, 3)
+	if len(result) <= 0 {
+		t.Fatal("PageRank Jaro Winkler test failed")
+	}
 }
 
 func BenchmarkSummarizeCentralityJaccard(b *testing.B) {
