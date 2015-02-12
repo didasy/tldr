@@ -9,18 +9,22 @@ tldr is a golang package to summarize a text automatically using [lexrank](http:
 ### How?
 There are two main steps in lexrank, weighing, and ranking. tldr have three weighing and two ranking algorithm included, they are tfidf-modified-cosine distance, Jaccard coeficient, Hamming distance, and PageRank, centrality, respectively. The default settings use Hamming distance and centrality.
 
+There is now new weighing algorithm: `byteferret` that will generate same summary as Jaccard and Hamming, but is slower than both of them.
+
 The best combination that produced the best summaries are Hamming and centrality in my opinion (and tests, which is why they are the default.)
 
 ### Is this fast?
 Test it yourself using `go text -bench . -cpu 4 -benchtime=5s`. 
 My system has i3-3217U @1.8Ghz and this is the result (Windows, with some programs going on) :
 ```
-BenchmarkSummarizeCentralityJaccard-4       2000           3734992 ns/op
-BenchmarkSummarizePageRankJaccard-4         2000           3492330 ns/op
-BenchmarkSummarizeCentralityHamming-4       2000           3581389 ns/op
-BenchmarkSummarizePageRankHamming-4         2000           3434289 ns/op
-BenchmarkSummarizeCentralityTfidf-4          100          54566415 ns/op
-BenchmarkSummarizePageRankTfIdf-4            100          56237523 ns/op
+BenchmarkSummarizeCentralityJaccard-4       1000           6649430 ns/op
+BenchmarkSummarizePageRankJaccard-4         1000           6483326 ns/op
+BenchmarkSummarizeCentralityHamming-4       1000           6469321 ns/op
+BenchmarkSummarizePageRankHamming-4         1000           6464313 ns/op
+BenchmarkSummarizeCentralityTfidf-4          200          49638106 ns/op
+BenchmarkSummarizePageRankTfIdf-4            200          50038370 ns/op
+BenchmarkSummarizeCentralityFerret-4         300          20933952 ns/op
+BenchmarkSummarizePageRankFerret-4           300          20833901 ns/op
 ``` 
 
 ### Installation

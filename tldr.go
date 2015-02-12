@@ -29,7 +29,7 @@ func New() *Bag {
 
 // the default values of each settings
 const (
-	VERSION = "0.1.2"
+	VERSION = "0.1.3"
 	ALGORITHM = "centrality"
 	WEIGHING = "hamming"
 	DAMPING = 0.85
@@ -87,8 +87,8 @@ func (bag *Bag) Summarize(text string, num int) string {
 	// sort it ascending
 	sort.Ints(idx)
 	var res string
-	for _, v := range idx {
-		res += bag.originalSentences[v] + " "
+	for i := 0; i < len(idx); i++ {
+		res += bag.originalSentences[idx[i]] + " "
 	}
 	return res
 }
@@ -181,19 +181,6 @@ func (bag *Bag) createByteFerretEdges() {
 			if i != j {
 				src := strings.Join(srcT, " ")
 				dst := strings.Join(dstT, " ")
-				// compact the strings
-				src = strings.Map(func (r rune) rune {
-					if !unicode.IsDigit(r) && !unicode.IsLetter(r) {
-						return -1
-					}
-					return r
-				}, src)
-				dst = strings.Map(func (r rune) rune {
-					if !unicode.IsDigit(r) && !unicode.IsLetter(r) {
-						return -1
-					}
-					return r
-				}, dst)
 				weight := 0.0
 				srcB := []byte(src)
 				dstB := []byte(dst)
@@ -212,8 +199,8 @@ func (bag *Bag) createByteFerretEdges() {
 						weight++
 					}
 				}
-				// this is Jaccard's similarity
-				weight = weight / ( ( float64( len(srcB) ) + float64( len(dstB) ) ) - weight )
+				// Jaccard distance
+				weight = 1.0 - weight / ( ( float64( len(srcB) ) + float64( len(dstB) ) ) - weight )
 				edge := &Edge{i, j, weight}
 				bag.edges = append(bag.edges, edge)
 			}
@@ -221,26 +208,13 @@ func (bag *Bag) createByteFerretEdges() {
 	}
 }
 
-// this is experimental, using sanitized sentence string but not tokenized
+// this is experimental, using sanitized sentence strings but not tokenized
 func (bag *Bag) createJaroWinklerEdges() {
 	for i, srcT := range bag.sentences {
 		for j, dstT := range bag.sentences {
 			if i != j {
 				src := strings.Join(srcT, " ")
 				dst := strings.Join(dstT, " ")
-				// compact the strings
-				src = strings.Map(func (r rune) rune {
-					if !unicode.IsDigit(r) && !unicode.IsLetter(r) {
-						return -1
-					}
-					return r
-				}, src)
-				dst = strings.Map(func (r rune) rune {
-					if !unicode.IsDigit(r) && !unicode.IsLetter(r) {
-						return -1
-					}
-					return r
-				}, dst)
 				weight := createJaroWinklerDistance(src, dst)
 				edge := &Edge{i, j, weight}
 				bag.edges = append(bag.edges, edge)
@@ -609,12 +583,12 @@ func (bag *Bag) createSentences(text string, done chan<- bool) {
 				return r
 			}, word)
 			// FIX
-			word = sanitizeWord(word)
+			sanitizeWord(&word)
 			sentence = append(sentence, word)
 			sentences = append(sentences, sentence)
 			sentence = []string{}
 		} else {
-			word = sanitizeWord(word)
+			sanitizeWord(&word)
 			sentence = append(sentence, word)
 		}
 	}
@@ -622,7 +596,7 @@ func (bag *Bag) createSentences(text string, done chan<- bool) {
 		sentences = append(sentences, sentence)
 	}
 	// remove doubled sentence
-	sentences = uniqSentences(sentences)
+	uniqSentences(sentences)
 	bag.sentences = sentences
 	done <- true
 }
@@ -658,33 +632,55 @@ func (bag *Bag) createOriginalSentences(text string, done chan<- bool) {
 	done <- true
 }
 
-func uniqSentences(sentences [][]string) [][]string {
-	var z []string
-	// create a sentence as one string and append it to z
-	for _, v := range sentences {
-		j := strings.Join(v ," ")
-		z = append(z, j)
+func uniqSentences(sentences [][]string) {
+	var msens []string
+	for _, sen := range sentences {
+		merged := strings.Join(sen, " ")
+		msens = append(msens, merged)
 	}
-	m := make(map[string]bool)
-	var uniq []string
-	for _, v := range z {
-		if m[v] {
+	// Do jarowinkler then CSIS to deduplicate sentences
+	reject := make(map[int]bool, len(msens))
+	// First JaroWinkler
+	next := 1
+	for _, sen := range msens {
+		for j := next; j < len(msens); j++ {
+			if distance(sen, msens[j]) >= 0.95 {
+				reject[j] = true
+			}
+		}
+		next++
+	}
+	// Then CSIS
+	for i, psen := range msens {
+		for j, nsen := range msens {
+			if i != j {
+				// if i subset of j, put i in reject
+				if strings.Contains(nsen, psen) {
+					reject[i] = true
+					continue
+				}
+				// if j subset of i, put j in reject
+				if strings.Contains(psen, nsen) {
+					reject[j] = true
+					continue
+				}
+			}
+		}
+	}
+
+	sentences = [][]string{}
+	for i, sen := range msens {
+		if reject[i] {
 			continue
 		}
-		uniq = append(uniq, v)
-		m[v] = true
+		sentences = append(sentences, strings.Fields(sen))
 	}
-	var unique [][]string
-	for _, v := range uniq {
-		unique = append(unique, strings.Fields(v))
-	}
-	return unique
 }
 
-func sanitizeWord(word string) string {
-	word = strings.ToLower(word)
+func sanitizeWord(word *string) {
+	*word = strings.ToLower(*word)
 	var prev rune
-	word = strings.Map(func (r rune) rune {
+	*word = strings.Map(func (r rune) rune {
 		// don't remove '-' if it exists after alphanumerics
 		if r == '-' && (unicode.IsDigit(prev) || unicode.IsLetter(prev)) {
 			return r
@@ -694,8 +690,7 @@ func sanitizeWord(word string) string {
 		}
 		prev = r
 		return r
-	}, word)
-	return word
+	}, *word)
 }
 
 func (bag *Bag) createDictionary(text string) {
