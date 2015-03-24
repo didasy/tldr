@@ -76,7 +76,7 @@ func (bag *Bag) Summarize(text string, num int) string {
 		bag.createEdges()
 	}
 	if Algorithm == "centrality" {
-		bag.centrality()	
+		bag.centrality()
 	} else if Algorithm == "pagerank" {
 		bag.pageRank()
 	} else {
@@ -110,9 +110,9 @@ func (bag *Bag) centrality() {
 		}
 		newEdges[j+1] = v
 	}
-	var rankBySrc []int
-	for _, v := range newEdges {
-		rankBySrc = append(rankBySrc, v.src)
+	rankBySrc := make([]int, len(newEdges))
+	for i, v := range newEdges {
+		rankBySrc[i] = v.src
 	}
 	// uniq it without disturbing the order
 	m := make(map[int]bool)
@@ -147,7 +147,6 @@ func (bag *Bag) pageRank() {
 		graph.Link(edge.src, edge.dst)
 	}
 	var ranks []*Rank
-	// ranks := make(map[int]float64)
 	graph.Rank(Damping, Tolerance, func (sentenceIndex int, rank float64) {
 		ranks = append(ranks, &Rank{sentenceIndex, rank})
 	})
@@ -160,11 +159,11 @@ func (bag *Bag) pageRank() {
 		}
 		ranks[j+1] = v
 	}
-	var idx []int
-	for _, v := range ranks {
-		idx = append(idx, v.idx)
+	idx := make([]int, len(ranks))
+	for i, v := range ranks {
+		idx[i] = v.idx
 	}
-	
+
 	bag.ranks = idx
 }
 
@@ -295,7 +294,7 @@ func distance(str1 string, str2 string) float64 {
 			}
 		}
 	}
-	
+
 	if m == 0 {
 		return 0.0
 	}
@@ -389,7 +388,7 @@ func (bag *Bag) createTfIdfModifiedCosineSimilarityEdges() {
 				edge := &Edge{i, j, weight}
 				bag.edges = append(bag.edges, edge)
 			}
-		}		
+		}
 	}
 }
 
@@ -500,7 +499,7 @@ func symetricDifference(src, dst []int) []int {
 	for i, v := range src {
 		if v != dst[i] {
 			diff = append(diff, i)
-		} 
+		}
 	}
 	return diff
 }

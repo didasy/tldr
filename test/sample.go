@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"github.com/JesusIslam/tldr-lr"
+	"github.com/JesusIslam/tldr"
 )
 
 func main() {
