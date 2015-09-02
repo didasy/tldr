@@ -5,21 +5,21 @@ Dependencies:
 package tldr
 
 import (
-	"sort"
-	"math"
 	"bytes"
+	"github.com/dcadenas/pagerank"
+	"math"
+	"sort"
 	"strings"
 	"unicode"
-	"github.com/dcadenas/pagerank"
 )
 
 type Bag struct {
-	sentences [][]string
+	sentences         [][]string
 	originalSentences []string
-	dict map[string]int
-	nodes []*Node
-	edges []*Edge
-	ranks []int
+	dict              map[string]int
+	nodes             []*Node
+	edges             []*Edge
+	ranks             []int
 }
 
 // Create new summarizer
@@ -29,18 +29,18 @@ func New() *Bag {
 
 // the default values of each settings
 const (
-	VERSION = "0.1.3"
+	VERSION   = "0.1.3"
 	ALGORITHM = "centrality"
-	WEIGHING = "hamming"
-	DAMPING = 0.85
+	WEIGHING  = "hamming"
+	DAMPING   = 0.85
 	TOLERANCE = 0.0001
 	THRESHOLD = 0.001
 )
 
 var (
-	Algorithm string = "centrality"
-	Weighing string = "hamming"
-	Damping float64 = 0.85
+	Algorithm string  = "centrality"
+	Weighing  string  = "hamming"
+	Damping   float64 = 0.85
 	Tolerance float64 = 0.0001
 	Threshold float64 = 0.001
 )
@@ -62,8 +62,8 @@ func (bag *Bag) Summarize(text string, num int) string {
 	defer close(createSentencesChan)
 	go bag.createOriginalSentences(text, createOriginalSentencesChan)
 	go bag.createSentences(text, createSentencesChan)
-	<- createOriginalSentencesChan
-	<- createSentencesChan
+	<-createOriginalSentencesChan
+	<-createSentencesChan
 	if Weighing == "tfidf" {
 		bag.createTfIdfModifiedCosineSimilarityEdges()
 	} else if Weighing == "jarowinkler" {
@@ -83,7 +83,7 @@ func (bag *Bag) Summarize(text string, num int) string {
 		bag.centrality()
 	}
 	// get only num top of idx
-	idx := bag.ranks[:num]
+	idx := bag.ranks[:num-1]
 	// sort it ascending
 	sort.Ints(idx)
 	var res string
@@ -128,7 +128,7 @@ func (bag *Bag) centrality() {
 }
 
 type Rank struct {
-	idx int
+	idx   int
 	score float64
 }
 
@@ -147,7 +147,7 @@ func (bag *Bag) pageRank() {
 		graph.Link(edge.src, edge.dst)
 	}
 	var ranks []*Rank
-	graph.Rank(Damping, Tolerance, func (sentenceIndex int, rank float64) {
+	graph.Rank(Damping, Tolerance, func(sentenceIndex int, rank float64) {
 		ranks = append(ranks, &Rank{sentenceIndex, rank})
 	})
 	// sort ranks into an array of sentence index, by rank descending
@@ -168,8 +168,8 @@ func (bag *Bag) pageRank() {
 }
 
 type Edge struct {
-	src int // index of node
-	dst int // index of node
+	src    int     // index of node
+	dst    int     // index of node
 	weight float64 // weight of the similarity between two sentences
 }
 
@@ -199,7 +199,7 @@ func (bag *Bag) createByteFerretEdges() {
 					}
 				}
 				// Jaccard distance
-				weight = 1.0 - weight / ( ( float64( len(srcB) ) + float64( len(dstB) ) ) - weight )
+				weight = 1.0 - weight/((float64(len(srcB))+float64(len(dstB)))-weight)
 				edge := &Edge{i, j, weight}
 				bag.edges = append(bag.edges, edge)
 			}
@@ -246,7 +246,7 @@ func distance(str1 string, str2 string) float64 {
 		s2 = str1
 	}
 
-	matchWindow := int(math.Floor(math.Max(float64(len(s1)), float64(len(s2))) / 2.0) - 1.0)
+	matchWindow := int(math.Floor(math.Max(float64(len(s1)), float64(len(s2)))/2.0) - 1.0)
 	matches1 := make([]bool, len(s1))
 	matches2 := make([]bool, len(s2))
 	var m float64
@@ -302,7 +302,7 @@ func distance(str1 string, str2 string) float64 {
 	k := 0
 	for _, v := range s1 {
 		// guard from index out of range error
-		if k >= len(matches1) - 1 {
+		if k >= len(matches1)-1 {
 			break
 		}
 		//
@@ -320,7 +320,7 @@ func distance(str1 string, str2 string) float64 {
 	t = t / 2.0
 	x1 := m / float64(len(s1))
 	x2 := m / float64(len(s2))
-	return (x1 + x2 + ((m - t) / m) ) / 3
+	return (x1 + x2 + ((m - t) / m)) / 3
 }
 
 func createJaroWinklerDistance(s1 string, s2 string) float64 {
@@ -333,7 +333,7 @@ func createJaroWinklerDistance(s1 string, s2 string) float64 {
 	for s1[l] == s2[l] && l < 4 {
 		l++
 	}
-	return d + float64(l) * p * (1 - d)
+	return d + float64(l)*p*(1-d)
 }
 
 func (bag *Bag) createTfIdfModifiedCosineSimilarityEdges() {
@@ -358,13 +358,13 @@ func (bag *Bag) createTfIdfModifiedCosineSimilarityEdges() {
 				go createTfVector(srcS, seqDict, srcDoneChan)
 				go createTfVector(dstS, seqDict, dstDoneChan)
 				go createIdf(srcS, dstS, seqDict, idfDoneChan)
-				srcTfVector := <- srcDoneChan
-				dstTfVector := <- dstDoneChan
-				idf := <- idfDoneChan
+				srcTfVector := <-srcDoneChan
+				dstTfVector := <-dstDoneChan
+				idf := <-idfDoneChan
 				go createTfIdfVector(srcTfVector, idf, srcDoneChan)
 				go createTfIdfVector(dstTfVector, idf, dstDoneChan)
-				srcTfIdfVector := <- srcDoneChan
-				dstTfIdfVector := <- dstDoneChan
+				srcTfIdfVector := <-srcDoneChan
+				dstTfIdfVector := <-dstDoneChan
 				// https://janav.wordpress.com/2013/10/27/tf-idf-and-cosine-similarity/ for more explanation
 				// find the dot-product-idf-modified of them
 				dotProductDoneChan := make(chan float64)
@@ -380,9 +380,9 @@ func (bag *Bag) createTfIdfModifiedCosineSimilarityEdges() {
 				// now calculate tf-idf-modified-cosine-similarity between the sentences
 				// http://en.wikipedia.org/wiki/Cosine_similarity exactly like this, but switch tf with tfidf
 				// http://upload.wikimedia.org/math/f/3/6/f369863aa2814d6e283f859986a1574d.png for the formula
-				dotProduct := <- dotProductDoneChan
-				srcM := <- srcMagnitudeDoneChan
-				dstM := <- dstMagnitudeDoneChan
+				dotProduct := <-dotProductDoneChan
+				srcM := <-srcMagnitudeDoneChan
+				dstM := <-dstMagnitudeDoneChan
 				weight = dotProduct / (srcM * dstM)
 				// put them into the bag
 				edge := &Edge{i, j, weight}
@@ -478,13 +478,13 @@ func (bag *Bag) createEdges() {
 					commonElements := intersection(src.vector, dst.vector)
 					// Old version, Jaccard's coeficient, not distance
 					// weight = float64(len(commonElements)) / ((float64(vectorLength) * 2) - float64(len(commonElements)))
-					weight = 1.0 - float64(len(commonElements)) / ((float64(vectorLength) * 2) - float64(len(commonElements)))
+					weight = 1.0 - float64(len(commonElements))/((float64(vectorLength)*2)-float64(len(commonElements)))
 				} else if Weighing == "hamming" {
 					differentElements := symetricDifference(src.vector, dst.vector)
 					weight = float64(len(differentElements))
 				} else {
 					commonElements := intersection(src.vector, dst.vector)
-					weight = 1.0 - float64(len(commonElements)) / ((float64(vectorLength) * 2) - float64(len(commonElements)))
+					weight = 1.0 - float64(len(commonElements))/((float64(vectorLength)*2)-float64(len(commonElements)))
 				}
 				edge := &Edge{i, j, weight}
 				bag.edges = append(bag.edges, edge)
@@ -492,7 +492,6 @@ func (bag *Bag) createEdges() {
 		}
 	}
 }
-
 
 func symetricDifference(src, dst []int) []int {
 	var diff []int
@@ -522,18 +521,18 @@ func intersection(src, dst []int) []int {
 }
 
 type Node struct {
-	sentenceIndex int // index of sentence from the bag
-	vector []int // map of word count in respect with dict, should we use map instead of slice?
+	sentenceIndex int   // index of sentence from the bag
+	vector        []int // map of word count in respect with dict, should we use map instead of slice?
 	// for example :
 	/*
-	dict = {
-		i : 1
-		am : 2
-		the : 3
-		shit : 4
-	}
-	str = "I am not shit, you effin shit"
-	vector = [1, 1, 0, 2] => [1, 1, 0, 1] because should be binary
+		dict = {
+			i : 1
+			am : 2
+			the : 3
+			shit : 4
+		}
+		str = "I am not shit, you effin shit"
+		vector = [1, 1, 0, 2] => [1, 1, 0, 1] because should be binary
 	*/
 }
 
@@ -575,7 +574,7 @@ func (bag *Bag) createSentences(text string, done chan<- bool) {
 		// if there isn't . ? or !, append to sentence. If found, also append but reset the sentence
 		if strings.ContainsRune(word, '.') || strings.ContainsRune(word, '!') || strings.ContainsRune(word, '?') {
 			// FIX
-			word = strings.Map(func (r rune) rune {
+			word = strings.Map(func(r rune) rune {
 				if r == '.' || r == '!' || r == '?' {
 					return -1
 				}
@@ -679,7 +678,7 @@ func uniqSentences(sentences [][]string) {
 func sanitizeWord(word *string) {
 	*word = strings.ToLower(*word)
 	var prev rune
-	*word = strings.Map(func (r rune) rune {
+	*word = strings.Map(func(r rune) rune {
 		// don't remove '-' if it exists after alphanumerics
 		if r == '-' && (unicode.IsDigit(prev) || unicode.IsLetter(prev)) {
 			return r
@@ -699,7 +698,7 @@ func (bag *Bag) createDictionary(text string) {
 	text = strings.ToLower(text)
 	// remove all non alphanumerics but spaces
 	var prev rune
-	text = strings.Map(func (r rune) rune {
+	text = strings.Map(func(r rune) rune {
 		if r == '-' && (unicode.IsDigit(prev) || unicode.IsLetter(prev)) {
 			return r
 		}

@@ -43,15 +43,15 @@ import (
 
 func main() {
 	intoSentences := 3
-	textB, _ := ioutil.ReadFile("../sample.txt")
+	textB, _ := ioutil.ReadFile("./sample.txt")
 	text := string(textB)
 	bag := tldr.New()
 	result := bag.Summarize(text, intoSentences)
 	fmt.Println(result)
 }
 ```
-
-Or just run sample.go in the test directory.
+### Testing
+To test, just run `go test`, but you need to have [gomega](http://github.com/onsi/gomega) and [ginkgo](http://github.com/onsi/ginkgo) installed.
 
 ### Dependencies?
 tldr depends on [pagerank](https://github.com/dcadenas/pagerank) package, and you can install it with `go get github.com/dcadenas/pagerank`.
