@@ -82,8 +82,13 @@ func (bag *Bag) Summarize(text string, num int) string {
 	} else {
 		bag.centrality()
 	}
+	// guard so it won't crash but return only the highest rank sentence
+	// if num is invalid
+	if num > (len(bag.ranks)-1) || num < 1 {
+		num = 1
+	}
 	// get only num top of idx
-	idx := bag.ranks[:num-1]
+	idx := bag.ranks[:num]
 	// sort it ascending
 	sort.Ints(idx)
 	var res string
