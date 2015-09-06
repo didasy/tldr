@@ -82,6 +82,10 @@ func (bag *Bag) Summarize(text string, num int) string {
 	} else {
 		bag.centrality()
 	}
+	// if no ranks, just return the original sentence
+	if len(bag.ranks) == 0 {
+		return bag.originalSentences[0]
+	}
 	// guard so it won't crash but return only the highest rank sentence
 	// if num is invalid
 	if num > (len(bag.ranks)-1) || num < 1 {
