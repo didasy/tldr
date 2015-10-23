@@ -5,7 +5,7 @@ Dependencies:
 package tldr
 
 import (
-	"bytes"
+	"errors"
 	"github.com/dcadenas/pagerank"
 	"math"
 	"sort"
@@ -14,12 +14,12 @@ import (
 )
 
 type Bag struct {
-	sentences         [][]string
-	originalSentences []string
-	dict              map[string]int
-	nodes             []*Node
-	edges             []*Edge
-	ranks             []int
+	BagOfWordsPerSentence [][]string
+	OriginalSentences     []string
+	Dict                  map[string]int
+	Nodes                 []*Node
+	Edges                 []*Edge
+	Ranks                 []int
 }
 
 // Create new summarizer
@@ -27,14 +27,14 @@ func New() *Bag {
 	return &Bag{}
 }
 
-// the default values of each settings
+// The default values of each settings
 const (
-	VERSION   = "0.1.3"
-	ALGORITHM = "centrality"
-	WEIGHING  = "hamming"
-	DAMPING   = 0.85
-	TOLERANCE = 0.0001
-	THRESHOLD = 0.001
+	VERSION           = "0.3.0"
+	DEFAULT_ALGORITHM = "centrality"
+	DEFAULT_WEIGHING  = "hamming"
+	DEFAULT_DAMPING   = 0.85
+	DEFAULT_TOLERANCE = 0.0001
+	DEFAULT_THRESHOLD = 0.001
 )
 
 var (
@@ -55,57 +55,62 @@ func Set(d, t, th float64, alg, w string) {
 }
 
 // Summarize the text to num sentences
-func (bag *Bag) Summarize(text string, num int) string {
-	createOriginalSentencesChan := make(chan bool)
+func (bag *Bag) Summarize(text string, num int) (string, error) {
 	createSentencesChan := make(chan bool)
-	defer close(createOriginalSentencesChan)
+	createBagOfWordsPerSentenceChan := make(chan bool)
 	defer close(createSentencesChan)
-	go bag.createOriginalSentences(text, createOriginalSentencesChan)
-	go bag.createSentences(text, createSentencesChan)
-	<-createOriginalSentencesChan
+	defer close(createBagOfWordsPerSentenceChan)
+
+	go bag.CreateBagOfWordsPerSentence(text, createBagOfWordsPerSentenceChan)
+	go bag.CreateSentences(text, createSentencesChan)
 	<-createSentencesChan
-	if Weighing == "tfidf" {
-		bag.createTfIdfModifiedCosineSimilarityEdges()
-	} else if Weighing == "jarowinkler" {
-		bag.createJaroWinklerEdges()
-	} else if Weighing == "ferret" {
-		bag.createByteFerretEdges()
-	} else {
-		bag.createDictionary(text)
-		bag.createNodes()
-		bag.createEdges()
+	<-createBagOfWordsPerSentenceChan
+
+	bag.CreateDictionary(text)
+	bag.CreateNodes()
+	bag.CreateEdges()
+
+	switch Algorithm {
+	case "centrality":
+		bag.Centrality()
+		break
+	case "pagerank":
+		bag.PageRank()
+		break
+	default:
+		bag.Centrality()
 	}
-	if Algorithm == "centrality" {
-		bag.centrality()
-	} else if Algorithm == "pagerank" {
-		bag.pageRank()
-	} else {
-		bag.centrality()
+
+	// if no ranks, return error
+	if len(bag.Ranks) == 0 {
+		return "", errors.New("Ranks is empty")
 	}
-	// if no ranks, just return the original sentence
-	if len(bag.ranks) == 0 {
-		return bag.originalSentences[0]
-	}
+
 	// guard so it won't crash but return only the highest rank sentence
 	// if num is invalid
-	if num > (len(bag.ranks)-1) || num < 1 {
+	if num > (len(bag.Ranks)-1) || num < 1 {
 		num = 1
 	}
-	// get only num top of idx
-	idx := bag.ranks[:num]
-	// sort it ascending
+	// get only top num of ranks
+	idx := bag.Ranks[:num]
+	// sort it ascending by how the sentences appeared on the original text
 	sort.Ints(idx)
 	var res string
 	for i := 0; i < len(idx); i++ {
-		res += bag.originalSentences[idx[i]] + " "
+		res += (bag.OriginalSentences[idx[i]] + " ")
+		res += "\n"
 	}
-	return res
+
+	// trim it from spaces
+	res = strings.TrimSpace(res)
+
+	return res, nil
 }
 
-func (bag *Bag) centrality() {
+func (bag *Bag) Centrality() {
 	// first remove edges under Threshold weight
 	var newEdges []*Edge
-	for _, edge := range bag.edges {
+	for _, edge := range bag.Edges {
 		if edge.weight > Threshold {
 			newEdges = append(newEdges, edge)
 		}
@@ -133,7 +138,7 @@ func (bag *Bag) centrality() {
 		uniq = append(uniq, v)
 		m[v] = true
 	}
-	bag.ranks = uniq
+	bag.Ranks = uniq
 }
 
 type Rank struct {
@@ -141,10 +146,10 @@ type Rank struct {
 	score float64
 }
 
-func (bag *Bag) pageRank() {
+func (bag *Bag) PageRank() {
 	// first remove edges under Threshold weight
 	var newEdges []*Edge
-	for _, edge := range bag.edges {
+	for _, edge := range bag.Edges {
 		if edge.weight > Threshold {
 			newEdges = append(newEdges, edge)
 		}
@@ -173,7 +178,7 @@ func (bag *Bag) pageRank() {
 		idx[i] = v.idx
 	}
 
-	bag.ranks = idx
+	bag.Ranks = idx
 }
 
 type Edge struct {
@@ -182,60 +187,11 @@ type Edge struct {
 	weight float64 // weight of the similarity between two sentences
 }
 
-// this is experimental, using triple bytes with ferret algorithm
-func (bag *Bag) createByteFerretEdges() {
-	for i, srcT := range bag.sentences {
-		for j, dstT := range bag.sentences {
-			if i != j {
-				src := strings.Join(srcT, " ")
-				dst := strings.Join(dstT, " ")
-				weight := 0.0
-				srcB := []byte(src)
-				dstB := []byte(dst)
-				var lesser []byte
-				if len(srcB) < len(dstB) {
-					lesser = srcB
-				} else {
-					lesser = dstB
-				}
-				lesserLen := len(lesser)
-				shingleLen := 3
-				exists := false
-				for i := 0; i < lesserLen-shingleLen+1; i++ {
-					exists = bytes.Contains(srcB, dstB[i:(i+shingleLen)])
-					if exists {
-						weight++
-					}
-				}
-				// Jaccard distance
-				weight = 1.0 - weight/((float64(len(srcB))+float64(len(dstB)))-weight)
-				edge := &Edge{i, j, weight}
-				bag.edges = append(bag.edges, edge)
-			}
-		}
-	}
-}
-
-// this is experimental, using sanitized sentence strings but not tokenized
-func (bag *Bag) createJaroWinklerEdges() {
-	for i, srcT := range bag.sentences {
-		for j, dstT := range bag.sentences {
-			if i != j {
-				src := strings.Join(srcT, " ")
-				dst := strings.Join(dstT, " ")
-				weight := createJaroWinklerDistance(src, dst)
-				edge := &Edge{i, j, weight}
-				bag.edges = append(bag.edges, edge)
-			}
-		}
-	}
-}
-
 /*
 Whole code adapted to Go from:
 https://github.com/NaturalNode/natural/blob/master/lib/natural/distance/jaro-winkler_distance.js
 */
-func distance(str1 string, str2 string) float64 {
+func Distance(str1 string, str2 string) float64 {
 	if len(str1) == 0 && len(str2) == 0 {
 		return 0.0
 	}
@@ -332,177 +288,34 @@ func distance(str1 string, str2 string) float64 {
 	return (x1 + x2 + ((m - t) / m)) / 3
 }
 
-func createJaroWinklerDistance(s1 string, s2 string) float64 {
-	if s1 == s2 {
-		return 1
-	}
-	d := distance(s1, s2)
-	p := 0.1
-	l := 0
-	for s1[l] == s2[l] && l < 4 {
-		l++
-	}
-	return d + float64(l)*p*(1-d)
-}
-
-func (bag *Bag) createTfIdfModifiedCosineSimilarityEdges() {
-	// find tf of each word in each sentence in the bag.sentences
-	for i, src := range bag.originalSentences {
-		for j, dst := range bag.originalSentences {
-			if i != j {
-				var weight float64
-				srcS := bag.sentences[i]
-				dstS := bag.sentences[j]
-				// create a dict
-				bag.createDictionary(src + " " + dst)
-				// transform to seq dict
-				seqDict := createSeqDict(bag.dict)
-				// find tf, idf and tfidf of their words
-				srcDoneChan := make(chan []float64)
-				dstDoneChan := make(chan []float64)
-				idfDoneChan := make(chan []float64)
-				defer close(srcDoneChan)
-				defer close(dstDoneChan)
-				defer close(idfDoneChan)
-				go createTfVector(srcS, seqDict, srcDoneChan)
-				go createTfVector(dstS, seqDict, dstDoneChan)
-				go createIdf(srcS, dstS, seqDict, idfDoneChan)
-				srcTfVector := <-srcDoneChan
-				dstTfVector := <-dstDoneChan
-				idf := <-idfDoneChan
-				go createTfIdfVector(srcTfVector, idf, srcDoneChan)
-				go createTfIdfVector(dstTfVector, idf, dstDoneChan)
-				srcTfIdfVector := <-srcDoneChan
-				dstTfIdfVector := <-dstDoneChan
-				// https://janav.wordpress.com/2013/10/27/tf-idf-and-cosine-similarity/ for more explanation
-				// find the dot-product-idf-modified of them
-				dotProductDoneChan := make(chan float64)
-				defer close(dotProductDoneChan)
-				go createDotProduct(srcTfIdfVector, dstTfIdfVector, dotProductDoneChan)
-				// find the sum of magnitude of each tfidf in each sentences
-				srcMagnitudeDoneChan := make(chan float64)
-				dstMagnitudeDoneChan := make(chan float64)
-				defer close(srcMagnitudeDoneChan)
-				defer close(dstMagnitudeDoneChan)
-				go createMagnitude(srcTfIdfVector, srcMagnitudeDoneChan)
-				go createMagnitude(dstTfIdfVector, dstMagnitudeDoneChan)
-				// now calculate tf-idf-modified-cosine-similarity between the sentences
-				// http://en.wikipedia.org/wiki/Cosine_similarity exactly like this, but switch tf with tfidf
-				// http://upload.wikimedia.org/math/f/3/6/f369863aa2814d6e283f859986a1574d.png for the formula
-				dotProduct := <-dotProductDoneChan
-				srcM := <-srcMagnitudeDoneChan
-				dstM := <-dstMagnitudeDoneChan
-				weight = dotProduct / (srcM * dstM)
-				// put them into the bag
-				edge := &Edge{i, j, weight}
-				bag.edges = append(bag.edges, edge)
-			}
-		}
-	}
-}
-
-func createTfVector(sen, seqDict []string, done chan<- []float64) {
-	vector := make([]float64, len(seqDict))
-	for i, term := range seqDict {
-		for _, word := range sen {
-			if term == word {
-				vector[i]++
-			}
-		}
-	}
-	// find the tf
-	senTermsCount := float64(len(sen))
-	for i, count := range vector {
-		vector[i] = count / senTermsCount
-	}
-	done <- vector
-}
-
-func createIdf(src, dst, seqDict []string, done chan<- []float64) {
-	// count occurence of each word in each sentence
-	idf := make([]float64, len(seqDict))
-	for i, term := range seqDict {
-		for _, word := range src {
-			if term == word {
-				idf[i] = 1.0
-			}
-		}
-		for _, word := range dst {
-			if term == word {
-				if idf[i] == 1.0 {
-					idf[i] = 2.0
-				} else {
-					idf[i] = 1.0
-				}
-			}
-		}
-	}
-	// calculate idf of each words
-	for i, count := range idf {
-		idf[i] = math.Log(2.0 / count)
-	}
-	done <- idf
-}
-
-func createTfIdfVector(vector, idf []float64, done chan<- []float64) {
-	tfidf := make([]float64, len(vector))
-	for i, tf := range vector {
-		tfidf[i] = tf * idf[i]
-	}
-	done <- tfidf
-}
-
-func createDotProduct(srcVector, dstVector []float64, done chan<- float64) {
-	var dotProduct float64
-	for i, v := range srcVector {
-		dotProduct += (v * dstVector[i])
-	}
-	done <- dotProduct
-}
-
-func createMagnitude(vector []float64, done chan<- float64) {
-	var magnitude float64
-	for _, tfidf := range vector {
-		magnitude += (tfidf * tfidf)
-	}
-	magnitude = math.Sqrt(magnitude)
-	done <- magnitude
-}
-
-func createSeqDict(dict map[string]int) []string {
-	var seq []string
-	for term, _ := range dict {
-		seq = append(seq, term)
-	}
-	return seq
-}
-
-func (bag *Bag) createEdges() {
-	for i, src := range bag.nodes {
-		for j, dst := range bag.nodes {
+func (bag *Bag) CreateEdges() {
+	for i, src := range bag.Nodes {
+		for j, dst := range bag.Nodes {
 			// don't compare same node
 			if i != j {
 				var weight float64
-				if Weighing == "jaccard" {
-					commonElements := intersection(src.vector, dst.vector)
-					// Old version, Jaccard's coeficient, not distance
-					// weight = float64(len(commonElements)) / ((float64(vectorLength) * 2) - float64(len(commonElements)))
+				switch Weighing {
+				case "jaccard":
+					commonElements := Intersection(src.vector, dst.vector)
 					weight = 1.0 - float64(len(commonElements))/((float64(vectorLength)*2)-float64(len(commonElements)))
-				} else if Weighing == "hamming" {
-					differentElements := symetricDifference(src.vector, dst.vector)
+					break
+				case "hamming":
+					differentElements := SymmetricDifference(src.vector, dst.vector)
 					weight = float64(len(differentElements))
-				} else {
-					commonElements := intersection(src.vector, dst.vector)
+					break
+				default:
+					// defaulted to jaccard
+					commonElements := Intersection(src.vector, dst.vector)
 					weight = 1.0 - float64(len(commonElements))/((float64(vectorLength)*2)-float64(len(commonElements)))
 				}
 				edge := &Edge{i, j, weight}
-				bag.edges = append(bag.edges, edge)
+				bag.Edges = append(bag.Edges, edge)
 			}
 		}
 	}
 }
 
-func symetricDifference(src, dst []int) []int {
+func SymmetricDifference(src, dst []int) []int {
 	var diff []int
 	for i, v := range src {
 		if v != dst[i] {
@@ -512,7 +325,7 @@ func symetricDifference(src, dst []int) []int {
 	return diff
 }
 
-func intersection(src, dst []int) []int {
+func Intersection(src, dst []int) []int {
 	intersect := make(map[int]bool)
 	for i, v := range src {
 		// Old version, only counting vector value with more than 0. So we only count occurence of a word in both sentence as similarity.
@@ -547,55 +360,52 @@ type Node struct {
 
 var vectorLength int
 
-func (bag *Bag) createNodes() {
-	vectorLength = len(bag.dict)
-	for i, sentence := range bag.sentences {
+func (bag *Bag) CreateNodes() {
+	vectorLength = len(bag.Dict)
+	for i, sentence := range bag.BagOfWordsPerSentence {
 		// vector length is len(dict)
 		vector := make([]int, vectorLength)
 		// word for word now
 		for _, word := range sentence {
 			// check word dict position, if doesn't exist, skip
-			if bag.dict[word] == 0 {
+			if bag.Dict[word] == 0 {
 				continue
 			}
 			// minus 1, because array started from 0 and lowest dict is 1
-			pos := bag.dict[word] - 1
+			pos := bag.Dict[word] - 1
 			// set 1 to the position
 			vector[pos] = 1
 		}
 		// vector is now created, put it into the node
 		node := &Node{i, vector}
 		// node is now completed, put into the bag
-		bag.nodes = append(bag.nodes, node)
+		bag.Nodes = append(bag.Nodes, node)
 	}
 }
 
-func (bag *Bag) createSentences(text string, done chan<- bool) {
+func (bag *Bag) CreateBagOfWordsPerSentence(text string, done chan<- bool) {
 	// trim all spaces
 	text = strings.TrimSpace(text)
 	words := strings.Fields(text)
 	var sentence []string
 	var sentences [][]string
 	for _, word := range words {
-		// FIX
 		word = strings.ToLower(word)
 
 		// if there isn't . ? or !, append to sentence. If found, also append but reset the sentence
 		if strings.ContainsRune(word, '.') || strings.ContainsRune(word, '!') || strings.ContainsRune(word, '?') {
-			// FIX
 			word = strings.Map(func(r rune) rune {
 				if r == '.' || r == '!' || r == '?' {
 					return -1
 				}
 				return r
 			}, word)
-			// FIX
-			sanitizeWord(&word)
+			word = SanitizeWord(word)
 			sentence = append(sentence, word)
 			sentences = append(sentences, sentence)
 			sentence = []string{}
 		} else {
-			sanitizeWord(&word)
+			word = SanitizeWord(word)
 			sentence = append(sentence, word)
 		}
 	}
@@ -603,12 +413,12 @@ func (bag *Bag) createSentences(text string, done chan<- bool) {
 		sentences = append(sentences, sentence)
 	}
 	// remove doubled sentence
-	uniqSentences(sentences)
-	bag.sentences = sentences
+	UniqSentences(sentences)
+	bag.BagOfWordsPerSentence = sentences
 	done <- true
 }
 
-func (bag *Bag) createOriginalSentences(text string, done chan<- bool) {
+func (bag *Bag) CreateSentences(text string, done chan<- bool) {
 	// trim all spaces
 	text = strings.TrimSpace(text)
 	// tokenize text
@@ -635,11 +445,11 @@ func (bag *Bag) createOriginalSentences(text string, done chan<- bool) {
 		str := strings.Join(s, " ")
 		bagOfSentence = append(bagOfSentence, str)
 	}
-	bag.originalSentences = bagOfSentence
+	bag.OriginalSentences = bagOfSentence
 	done <- true
 }
 
-func uniqSentences(sentences [][]string) {
+func UniqSentences(sentences [][]string) {
 	var msens []string
 	for _, sen := range sentences {
 		merged := strings.Join(sen, " ")
@@ -651,7 +461,7 @@ func uniqSentences(sentences [][]string) {
 	next := 1
 	for _, sen := range msens {
 		for j := next; j < len(msens); j++ {
-			if distance(sen, msens[j]) >= 0.95 {
+			if Distance(sen, msens[j]) >= 0.95 {
 				reject[j] = true
 			}
 		}
@@ -684,10 +494,10 @@ func uniqSentences(sentences [][]string) {
 	}
 }
 
-func sanitizeWord(word *string) {
-	*word = strings.ToLower(*word)
+func SanitizeWord(word string) string {
+	word = strings.ToLower(word)
 	var prev rune
-	*word = strings.Map(func(r rune) rune {
+	word = strings.Map(func(r rune) rune {
 		// don't remove '-' if it exists after alphanumerics
 		if r == '-' && (unicode.IsDigit(prev) || unicode.IsLetter(prev)) {
 			return r
@@ -697,10 +507,12 @@ func sanitizeWord(word *string) {
 		}
 		prev = r
 		return r
-	}, *word)
+	}, word)
+
+	return word
 }
 
-func (bag *Bag) createDictionary(text string) {
+func (bag *Bag) CreateDictionary(text string) {
 	// trim all spaces
 	text = strings.TrimSpace(text)
 	// lowercase the text
@@ -728,5 +540,5 @@ func (bag *Bag) createDictionary(text string) {
 			i++
 		}
 	}
-	bag.dict = dict
+	bag.Dict = dict
 }

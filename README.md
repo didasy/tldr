@@ -7,11 +7,7 @@
 tldr is a golang package to summarize a text automatically using [lexrank](http://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html) algorithm.
 
 ### How?
-There are two main steps in lexrank, weighing, and ranking. tldr have three weighing and two ranking algorithm included, they are tfidf-modified-cosine distance, Jaccard coeficient, Hamming distance, and PageRank, centrality, respectively. The default settings use Hamming distance and centrality.
-
-There is now new weighing algorithm: `byteferret` that will generate same summary as Jaccard and Hamming, but is slower than both of them.
-
-The best combination that produced the best summaries are Hamming and centrality in my opinion (and tests, which is why they are the default.)
+There are two main steps in lexrank, weighing, and ranking. tldr have three weighing and two ranking algorithm included, they are Jaccard coeficient, Hamming distance, and PageRank, centrality, respectively. The default settings use Hamming distance and centrality.
 
 ### Is this fast?
 Test it yourself using `go text -bench . -cpu 4 -benchtime=5s`. 
@@ -21,10 +17,6 @@ BenchmarkSummarizeCentralityJaccard-4       1000           6649430 ns/op
 BenchmarkSummarizePageRankJaccard-4         1000           6483326 ns/op
 BenchmarkSummarizeCentralityHamming-4       1000           6469321 ns/op
 BenchmarkSummarizePageRankHamming-4         1000           6464313 ns/op
-BenchmarkSummarizeCentralityTfidf-4          200          49638106 ns/op
-BenchmarkSummarizePageRankTfIdf-4            200          50038370 ns/op
-BenchmarkSummarizeCentralityFerret-4         300          20933952 ns/op
-BenchmarkSummarizePageRankFerret-4           300          20833901 ns/op
 ``` 
 
 ### Installation
