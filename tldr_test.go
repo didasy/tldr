@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"io/ioutil"
+	"strings"
 )
 
 var _ = Describe("tldr", func() {
@@ -29,10 +30,10 @@ var _ = Describe("tldr", func() {
 				Expect(err).To(BeNil())
 				Expect(sum).To(BeAssignableToTypeOf(""))
 				Expect(sum).NotTo(BeEmpty())
-				Expect(sum).To(Equal(string(result)))
+				Expect(sum).To(Equal(strings.TrimSpace(string(result))))
 			})
 		})
-		Context("Summarize sample.txt to 1 sentences but by giving it invalid parameter", func() {
+		Context("Summarize sample.txt to 1 sentence but by giving it invalid parameter", func() {
 			It("Should return a string with one sentence without error", func() {
 				sum, err := summarizer.Summarize(string(text), 10000)
 				Expect(err).To(BeNil())
