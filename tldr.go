@@ -29,7 +29,7 @@ func New() *Bag {
 
 // The default values of each settings
 const (
-	VERSION           = "0.3.0"
+	VERSION           = "0.3.1"
 	DEFAULT_ALGORITHM = "centrality"
 	DEFAULT_WEIGHING  = "hamming"
 	DEFAULT_DAMPING   = 0.85
@@ -115,15 +115,9 @@ func (bag *Bag) Centrality() {
 			newEdges = append(newEdges, edge)
 		}
 	}
-	// sort them by weight descending, using insertion sort
-	for i, v := range newEdges {
-		j := i - 1
-		for j >= 0 && newEdges[j].weight < v.weight {
-			newEdges[j+1] = newEdges[j]
-			j -= 1
-		}
-		newEdges[j+1] = v
-	}
+	// sort them by weight descending
+	HeapSortEdge(newEdges)
+	ReverseEdge(newEdges)
 	rankBySrc := make([]int, len(newEdges))
 	for i, v := range newEdges {
 		rankBySrc[i] = v.src
@@ -165,14 +159,8 @@ func (bag *Bag) PageRank() {
 		ranks = append(ranks, &Rank{sentenceIndex, rank})
 	})
 	// sort ranks into an array of sentence index, by rank descending
-	for i, v := range ranks {
-		j := i - 1
-		for j >= 0 && ranks[j].score < v.score {
-			ranks[j+1] = ranks[j]
-			j -= 1
-		}
-		ranks[j+1] = v
-	}
+	HeapSortRank(ranks)
+	ReverseRank(ranks)
 	idx := make([]int, len(ranks))
 	for i, v := range ranks {
 		idx[i] = v.idx

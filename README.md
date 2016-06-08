@@ -9,16 +9,6 @@ tldr is a golang package to summarize a text automatically using [lexrank](http:
 ### How?
 There are two main steps in lexrank, weighing, and ranking. tldr have three weighing and two ranking algorithm included, they are Jaccard coeficient, Hamming distance, and PageRank, centrality, respectively. The default settings use Hamming distance and centrality.
 
-### Is this fast?
-Test it yourself using `go test -bench . -cpu 4 -benchtime=5s`.
-My system has i3-3217U @1.8Ghz and this is the result (Windows, with some programs going on) :
-```
-BenchmarkSummarizeCentralityJaccard-4       1000           6649430 ns/op
-BenchmarkSummarizePageRankJaccard-4         1000           6483326 ns/op
-BenchmarkSummarizeCentralityHamming-4       1000           6469321 ns/op
-BenchmarkSummarizePageRankHamming-4         1000           6464313 ns/op
-``` 
-
 ### Installation
 `go get github.com/JesusIslam/tldr`
 
