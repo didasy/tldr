@@ -6,10 +6,31 @@ import (
 	"strings"
 )
 
-var sanitize *regexp.Regexp
+var sanitize, sentenceTokenizer *regexp.Regexp
 
 func init() {
 	sanitize = regexp.MustCompile(`([^a-z0-9]{2,}|[^a-z0-9_'-])`)
+	sentenceTokenizer = regexp.MustCompile(`([\.\?\!])(?:\s|$)`)
+}
+
+func TokenizeSentences(text string) []string {
+	tokens := []string{}
+
+	text = strings.TrimSpace(text)
+
+	// [][]int
+	idxMap := sentenceTokenizer.FindAllStringIndex(text, -1)
+
+	// cut by guide
+	from := 0
+	for _, c := range idxMap {
+		str := text[from : c[0]+1]
+		str = strings.TrimSpace(str)
+		tokens = append(tokens, str)
+		from = c[1]
+	}
+
+	return tokens
 }
 
 /*

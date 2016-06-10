@@ -1,6 +1,8 @@
 /*
 Dependencies:
   go get github.com/dcadenas/pagerank
+
+WARNING: This package is not thread safe, so you cannot use *Bag from many goroutines.
 */
 package tldr
 
@@ -20,8 +22,8 @@ type Bag struct {
 	Ranks                 []int
 
 	MaxCharacters              int
-	Algorithm                  string
-	Weighing                   string
+	Algorithm                  string // "centrality" or "pagerank"
+	Weighing                   string // "hamming" or "jaccard"
 	Damping                    float64
 	Tolerance                  float64
 	Threshold                  float64
@@ -32,7 +34,7 @@ type Bag struct {
 
 // The default values of each settings
 const (
-	VERSION                              = "0.4.0"
+	VERSION                              = "0.4.1"
 	DEFAULT_ALGORITHM                    = "centrality"
 	DEFAULT_WEIGHING                     = "hamming"
 	DEFAULT_DAMPING                      = 0.85
@@ -68,16 +70,7 @@ func (bag *Bag) Set(m int, d, t, th, sth float64, alg, w string) {
 
 // Summarize the text to num sentences
 func (bag *Bag) Summarize(text string, num int) (string, error) {
-	createSentencesChan := make(chan bool)
-	createBagOfWordsPerSentenceChan := make(chan bool)
-	defer close(createSentencesChan)
-	defer close(createBagOfWordsPerSentenceChan)
-
-	go bag.CreateBagOfWordsPerSentence(text, createBagOfWordsPerSentenceChan)
-	go bag.CreateSentences(text, createSentencesChan)
-	<-createSentencesChan
-	<-createBagOfWordsPerSentenceChan
-
+	bag.CreateSentences(text)
 	bag.CreateDictionary(text)
 	bag.CreateNodes()
 	bag.CreateEdges()
@@ -103,12 +96,13 @@ func (bag *Bag) Summarize(text string, num int) (string, error) {
 	if num > (len(bag.Ranks)-1) || num < 1 {
 		num = 1
 	}
+
 	// get only top num of ranks
 	idx := bag.Ranks[:num]
 	// sort it ascending by how the sentences appeared on the original text
 	HeapSortInt(idx)
 	var res string
-	for i := 0; i < len(idx); i++ {
+	for i, _ := range idx {
 		res += (bag.OriginalSentences[idx[i]] + " ")
 		res += "\n\n"
 	}
@@ -264,70 +258,26 @@ func (bag *Bag) CreateNodes() {
 	}
 }
 
-func (bag *Bag) CreateBagOfWordsPerSentence(text string, done chan<- bool) {
+func (bag *Bag) CreateSentences(text string) {
 	// trim all spaces
 	text = strings.TrimSpace(text)
-	words := strings.Fields(text)
-	var sentence []string
-	var sentences [][]string
-	for _, word := range words {
-		word = strings.ToLower(word)
+	// tokenize text as sentences
+	// sentence is a group of words separated by whitespaces or punctuation other than !?.
+	bag.OriginalSentences = TokenizeSentences(text)
 
-		// if there isn't . ? or !, append to sentence. If found, also append but reset the sentence
-		if strings.ContainsRune(word, '.') || strings.ContainsRune(word, '!') || strings.ContainsRune(word, '?') {
-			word = strings.Map(func(r rune) rune {
-				if r == '.' || r == '!' || r == '?' {
-					return -1
-				}
-				return r
-			}, word)
-			word = SanitizeWord(word)
-			sentence = append(sentence, word)
-			sentences = append(sentences, sentence)
-			sentence = []string{}
-		} else {
-			word = SanitizeWord(word)
-			sentence = append(sentence, word)
+	// from original sentences, explode each sentences into bag of words
+	bag.BagOfWordsPerSentence = [][]string{}
+	for _, sentence := range bag.OriginalSentences {
+		words := strings.Fields(sentence)
+		// then sanitize each word
+		for i, word := range words {
+			words[i] = SanitizeWord(word)
 		}
+		bag.BagOfWordsPerSentence = append(bag.BagOfWordsPerSentence, words)
 	}
-	if len(sentence) > 0 {
-		sentences = append(sentences, sentence)
-	}
-	// remove doubled sentence
-	UniqSentences(sentences, bag.SentencesDistanceThreshold)
-	bag.BagOfWordsPerSentence = sentences
-	done <- true
-}
 
-func (bag *Bag) CreateSentences(text string, done chan<- bool) {
-	// trim all spaces
-	text = strings.TrimSpace(text)
-	// tokenize text
-	words := strings.Fields(text)
-	// build sentence
-	var sentence []string
-	var sentences [][]string
-	for _, word := range words {
-		// if there isn't . ? or !, append to sentence. If found, also append but reset the sentence
-		if strings.ContainsRune(word, '.') || strings.ContainsRune(word, '!') || strings.ContainsRune(word, '?') {
-			sentence = append(sentence, word)
-			sentences = append(sentences, sentence)
-			sentence = []string{}
-		} else {
-			sentence = append(sentence, word)
-		}
-	}
-	if len(sentence) > 0 {
-		sentences = append(sentences, sentence)
-	}
-	// now flatten them
-	var bagOfSentence []string
-	for _, s := range sentences {
-		str := strings.Join(s, " ")
-		bagOfSentence = append(bagOfSentence, str)
-	}
-	bag.OriginalSentences = bagOfSentence
-	done <- true
+	// then uniq it
+	UniqSentences(bag.BagOfWordsPerSentence, bag.SentencesDistanceThreshold)
 }
 
 func (bag *Bag) CreateDictionary(text string) {

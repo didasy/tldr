@@ -11,10 +11,10 @@ import (
 )
 
 var (
-	err          error
-	raw          []byte
-	text, result string
-	summarizer   *Bag
+	err                       error
+	raw                       []byte
+	text, result, shortResult string
+	summarizer                *Bag
 )
 
 func init() {
@@ -28,18 +28,23 @@ func init() {
 		panic(err)
 	}
 	result = string(raw)
+	raw, err = ioutil.ReadFile("./short.result.txt")
+	if err != nil {
+		panic(err)
+	}
+	shortResult = string(raw)
 	summarizer = New()
 }
 
 var _ = Describe("tldr", func() {
 	Describe("Test summarizing", func() {
-		Context("Summarize sample.txt to 2 sentences", func() {
+		Context("Summarize sample.txt to 3 sentences", func() {
 			It("Should return a string match with result.txt without error", func() {
-				sum, err := summarizer.Summarize(text, 2)
+				sum, err := summarizer.Summarize(text, 3)
 				Expect(err).To(BeNil())
 				Expect(sum).To(BeAssignableToTypeOf(""))
 				Expect(sum).NotTo(BeEmpty())
-				Expect(sum).To(Equal(strings.TrimSpace(string(result))))
+				Expect(sum).To(Equal(strings.TrimSpace(result)))
 			})
 		})
 		Context("Summarize sample.txt to 1 sentence but by giving it invalid parameter", func() {
@@ -48,7 +53,7 @@ var _ = Describe("tldr", func() {
 				Expect(err).To(BeNil())
 				Expect(sum).To(BeAssignableToTypeOf(""))
 				Expect(sum).NotTo(BeEmpty())
-				Expect(sum).To(Equal("In honor of the Museum of Narrative Art and its star-studded cast of architects, here's a roundup of articles from Architizer that feature Star Wars-related architecture: Jeff Bennett's Wars on Kinkade are hilarious paintings that ravage the peaceful landscapes of Thomas Kinkade with the brutal destruction of Star Wars."))
+				Expect(sum).To(Equal(strings.TrimSpace(string(shortResult))))
 			})
 		})
 	})
