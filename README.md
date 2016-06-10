@@ -13,11 +13,11 @@ There are two main steps in lexrank, weighing, and ranking. tldr have three weig
 Test it yourself, my system is i3-3217@1.8GHz with single channel 4GB RAM using Ubuntu 15.10 with kernel 4.5.0
 ```
 $ go test -bench . -benchmem -benchtime 5s -cpu 4
-BenchmarkSummarizeCentralityHamming-4	    1000	   6711616 ns/op	  401276 B/op	    3549 allocs/op
-BenchmarkSummarizeCentralityJaccard-4	     200	  30100299 ns/op	 3450020 B/op	   12551 allocs/op
-BenchmarkSummarizePagerankHamming-4  	    1000	   6499451 ns/op	  406041 B/op	    3705 allocs/op
-BenchmarkSummarizePagerankJaccard-4  	     300	  29431135 ns/op	 3454529 B/op	   12703 allocs/op
-ok  	github.com/JesusIslam/tldr	35.343s
+BenchmarkSummarizeCentralityHamming-4	    1000	   6583990 ns/op	  401311 B/op	    3549 allocs/op
+BenchmarkSummarizeCentralityJaccard-4	     300	  28813583 ns/op	 3449792 B/op	   12546 allocs/op
+BenchmarkSummarizePagerankHamming-4  	    1000	   7122519 ns/op	  420581 B/op	    3729 allocs/op
+BenchmarkSummarizePagerankJaccard-4  	     300	  30523688 ns/op	 3468906 B/op	   12725 allocs/op
+ok  	github.com/JesusIslam/tldr	38.566s
 ```
 So, not bad huh?
 
@@ -48,7 +48,7 @@ func main() {
 To test, just run `go test`, but you need to have [gomega](http://github.com/onsi/gomega) and [ginkgo](http://github.com/onsi/ginkgo) installed.
 
 ### Dependencies?
-tldr depends on [pagerank](https://github.com/dcadenas/pagerank) package, and you can install it with `go get github.com/dcadenas/pagerank`.
+tldr depends on [pagerank](https://github.com/alixaxel/pagerank) package, and you can install it with `go get github.com/alixaxel/pagerank`.
 
 ### License?
 Check the LICENSE file. tldr: MIT.

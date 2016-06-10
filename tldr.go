@@ -1,6 +1,6 @@
 /*
 Dependencies:
-  go get github.com/dcadenas/pagerank
+  go get github.com/alixaxel/pagerank
 
 WARNING: This package is not thread safe, so you cannot use *Bag from many goroutines.
 */
@@ -8,7 +8,7 @@ package tldr
 
 import (
 	"errors"
-	"github.com/dcadenas/pagerank"
+	"github.com/alixaxel/pagerank"
 	"strings"
 	"unicode"
 )
@@ -34,7 +34,7 @@ type Bag struct {
 
 // The default values of each settings
 const (
-	VERSION                              = "0.4.1"
+	VERSION                              = "0.4.2"
 	DEFAULT_ALGORITHM                    = "centrality"
 	DEFAULT_WEIGHING                     = "hamming"
 	DEFAULT_DAMPING                      = 0.85
@@ -166,14 +166,14 @@ func (bag *Bag) PageRank() {
 		}
 	}
 	// then page rank them
-	graph := pagerank.New()
-	defer graph.Clear()
+	graph := pagerank.NewGraph()
+	defer graph.Reset()
 	for _, edge := range newEdges {
-		graph.Link(edge.src, edge.dst)
+		graph.Link(uint32(edge.src), uint32(edge.dst), edge.weight)
 	}
 	var ranks []*Rank
-	graph.Rank(bag.Damping, bag.Tolerance, func(sentenceIndex int, rank float64) {
-		ranks = append(ranks, &Rank{sentenceIndex, rank})
+	graph.Rank(bag.Damping, bag.Tolerance, func(sentenceIndex uint32, rank float64) {
+		ranks = append(ranks, &Rank{int(sentenceIndex), rank})
 	})
 	// sort ranks into an array of sentence index, by rank descending
 	HeapSortRank(ranks)
