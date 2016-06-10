@@ -1,6 +1,7 @@
 # tldr
 ### When you are too lazy to read the entire text
 ------------------------------------------------------
+[![Build Status](https://travis-ci.org/JesusIslam/tldr.svg?branch=master)](https://travis-ci.org/JesusIslam/tldr)
 [![GoDoc](https://godoc.org/github.com/JesusIslam/tldr?status.svg)](https://godoc.org/github.com/JesusIslam/tldr)
 
 ### What?
