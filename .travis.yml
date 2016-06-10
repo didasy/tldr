@@ -1,0 +1,21 @@
+language: go
+
+sudo: false
+
+go: 
+ - release
+ - tip
+
+before_script:
+ - go vet ./...
+
+script:
+ - $HOME/gopath/bin/goveralls -service=travis-ci
+
+before_install:
+  - go get github.com/mattn/goveralls
+  - go get golang.org/x/tools/cmd/cover
+
+install:
+ - go get "github.com/onsi/ginkgo"
+ - go get "github.com/onsi/gomega"
