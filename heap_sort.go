@@ -1,5 +1,41 @@
 package tldr
 
+func maxHeapifyInt(tosort []int, position int) {
+	size := len(tosort)
+	maximum := position
+	leftChild := 2*position + 1
+	rightChild := leftChild + 1
+	if leftChild < size && tosort[leftChild] > tosort[position] {
+		maximum = leftChild
+	}
+	if rightChild < size && tosort[rightChild] > tosort[maximum] {
+		maximum = rightChild
+	}
+
+	if position != maximum {
+		tosort[position], tosort[maximum] = tosort[maximum], tosort[position]
+		maxHeapifyInt(tosort, maximum) //recursive
+	}
+}
+
+func buildMaxHeapInt(tosort []int) {
+
+	// from http://en.wikipedia.org/wiki/Heapsort
+	// iParent = floor((i-1) / 2)
+
+	for i := (len(tosort) - 1) / 2; i >= 0; i-- {
+		maxHeapifyInt(tosort, i)
+	}
+}
+
+func HeapSortInt(tosort []int) {
+	buildMaxHeapInt(tosort)
+	for i := len(tosort) - 1; i >= 1; i-- {
+		tosort[i], tosort[0] = tosort[0], tosort[i]
+		maxHeapifyInt(tosort[:i-1], 0)
+	}
+}
+
 func maxHeapifyEdge(tosort []*Edge, position int) {
 	size := len(tosort)
 	maximum := position

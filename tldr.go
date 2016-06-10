@@ -7,8 +7,6 @@ package tldr
 import (
 	"errors"
 	"github.com/dcadenas/pagerank"
-	"math"
-	"sort"
 	"strings"
 	"unicode"
 )
@@ -20,38 +18,52 @@ type Bag struct {
 	Nodes                 []*Node
 	Edges                 []*Edge
 	Ranks                 []int
-}
 
-// Create new summarizer
-func New() *Bag {
-	return &Bag{}
+	MaxCharacters              int
+	Algorithm                  string
+	Weighing                   string
+	Damping                    float64
+	Tolerance                  float64
+	Threshold                  float64
+	SentencesDistanceThreshold float64
+
+	vectorLength int
 }
 
 // The default values of each settings
 const (
-	VERSION           = "0.3.1"
-	DEFAULT_ALGORITHM = "centrality"
-	DEFAULT_WEIGHING  = "hamming"
-	DEFAULT_DAMPING   = 0.85
-	DEFAULT_TOLERANCE = 0.0001
-	DEFAULT_THRESHOLD = 0.001
+	VERSION                              = "0.4.0"
+	DEFAULT_ALGORITHM                    = "centrality"
+	DEFAULT_WEIGHING                     = "hamming"
+	DEFAULT_DAMPING                      = 0.85
+	DEFAULT_TOLERANCE                    = 0.0001
+	DEFAULT_THRESHOLD                    = 0.001
+	DEFAULT_MAX_CHARACTERS               = 0
+	DEFAULT_SENTENCES_DISTANCE_THRESHOLD = 0.95
 )
 
-var (
-	Algorithm string  = "centrality"
-	Weighing  string  = "hamming"
-	Damping   float64 = 0.85
-	Tolerance float64 = 0.0001
-	Threshold float64 = 0.001
-)
+// Create new summarizer
+func New() *Bag {
+	return &Bag{
+		MaxCharacters:              DEFAULT_MAX_CHARACTERS,
+		Algorithm:                  DEFAULT_ALGORITHM,
+		Weighing:                   DEFAULT_WEIGHING,
+		Damping:                    DEFAULT_DAMPING,
+		Tolerance:                  DEFAULT_TOLERANCE,
+		Threshold:                  DEFAULT_THRESHOLD,
+		SentencesDistanceThreshold: DEFAULT_SENTENCES_DISTANCE_THRESHOLD,
+	}
+}
 
-// Set damping, tolerance, threshold, algorithm, and weighing
-func Set(d, t, th float64, alg, w string) {
-	Damping = d
-	Tolerance = t
-	Threshold = th
-	Algorithm = alg
-	Weighing = w
+// Set max characters, damping, tolerance, threshold, sentences distance threshold, algorithm, and weighing
+func (bag *Bag) Set(m int, d, t, th, sth float64, alg, w string) {
+	bag.MaxCharacters = m
+	bag.Damping = d
+	bag.Tolerance = t
+	bag.Threshold = th
+	bag.Algorithm = alg
+	bag.Weighing = w
+	bag.SentencesDistanceThreshold = sth
 }
 
 // Summarize the text to num sentences
@@ -70,7 +82,7 @@ func (bag *Bag) Summarize(text string, num int) (string, error) {
 	bag.CreateNodes()
 	bag.CreateEdges()
 
-	switch Algorithm {
+	switch bag.Algorithm {
 	case "centrality":
 		bag.Centrality()
 		break
@@ -94,24 +106,40 @@ func (bag *Bag) Summarize(text string, num int) (string, error) {
 	// get only top num of ranks
 	idx := bag.Ranks[:num]
 	// sort it ascending by how the sentences appeared on the original text
-	sort.Ints(idx)
+	HeapSortInt(idx)
 	var res string
 	for i := 0; i < len(idx); i++ {
 		res += (bag.OriginalSentences[idx[i]] + " ")
-		res += "\n"
+		res += "\n\n"
 	}
 
 	// trim it from spaces
 	res = strings.TrimSpace(res)
 
+	// Truncate if it has more than n characters
+	// Note this is not bytes length
+	if bag.MaxCharacters > 0 {
+		// turn into runes
+		r := []rune(res)
+		// cut
+		r = r[:bag.MaxCharacters]
+		// then turn back to string
+		res = string(r)
+	}
+
 	return res, nil
+}
+
+type Rank struct {
+	idx   int
+	score float64
 }
 
 func (bag *Bag) Centrality() {
 	// first remove edges under Threshold weight
 	var newEdges []*Edge
 	for _, edge := range bag.Edges {
-		if edge.weight > Threshold {
+		if edge.weight > bag.Threshold {
 			newEdges = append(newEdges, edge)
 		}
 	}
@@ -135,16 +163,11 @@ func (bag *Bag) Centrality() {
 	bag.Ranks = uniq
 }
 
-type Rank struct {
-	idx   int
-	score float64
-}
-
 func (bag *Bag) PageRank() {
 	// first remove edges under Threshold weight
 	var newEdges []*Edge
 	for _, edge := range bag.Edges {
-		if edge.weight > Threshold {
+		if edge.weight > bag.Threshold {
 			newEdges = append(newEdges, edge)
 		}
 	}
@@ -155,7 +178,7 @@ func (bag *Bag) PageRank() {
 		graph.Link(edge.src, edge.dst)
 	}
 	var ranks []*Rank
-	graph.Rank(Damping, Tolerance, func(sentenceIndex int, rank float64) {
+	graph.Rank(bag.Damping, bag.Tolerance, func(sentenceIndex int, rank float64) {
 		ranks = append(ranks, &Rank{sentenceIndex, rank})
 	})
 	// sort ranks into an array of sentence index, by rank descending
@@ -175,117 +198,16 @@ type Edge struct {
 	weight float64 // weight of the similarity between two sentences
 }
 
-/*
-Whole code adapted to Go from:
-https://github.com/NaturalNode/natural/blob/master/lib/natural/distance/jaro-winkler_distance.js
-*/
-func Distance(str1 string, str2 string) float64 {
-	if len(str1) == 0 && len(str2) == 0 {
-		return 0.0
-	}
-	if str1 == str2 {
-		return 1.0
-	}
-	str1 = strings.ToLower(str1)
-	str2 = strings.ToLower(str2)
-
-	// s1 is lesser, s2 is higher
-	var s1, s2 string
-	if len(str1) <= len(str2) {
-		s1 = str1
-		s2 = str2
-	} else {
-		s1 = str2
-		s2 = str1
-	}
-
-	matchWindow := int(math.Floor(math.Max(float64(len(s1)), float64(len(s2)))/2.0) - 1.0)
-	matches1 := make([]bool, len(s1))
-	matches2 := make([]bool, len(s2))
-	var m float64
-	var t float64
-
-	for i, v := range s1 {
-		matched := false
-		if v == rune(s2[i]) {
-			matches1[i] = true
-			matches2[i] = true
-			matched = true
-			m++
-		} else {
-			var k int
-			if i <= matchWindow {
-				k = 0
-			} else {
-				k = i - matchWindow
-			}
-			for {
-				// Guard so we would not call uninitialized index
-				var x int
-				dif := len(s2) - len(s1)
-				if dif < 2 {
-					x = 0
-				} else {
-					x = (dif - 2)
-				}
-				if k == (len(s2) - x) {
-					break
-				}
-				//
-				if v == rune(s2[k]) {
-					if !matches1[i] && !matches2[k] {
-						m++
-					}
-					matches1[i] = true
-					matches2[k] = true
-					matched = true
-				}
-				k++
-				if (k <= (i + matchWindow)) && k < len(s2) && matched {
-					break
-				}
-			}
-		}
-	}
-
-	if m == 0 {
-		return 0.0
-	}
-
-	k := 0
-	for _, v := range s1 {
-		// guard from index out of range error
-		if k >= len(matches1)-1 {
-			break
-		}
-		//
-		if matches1[k] {
-			for k < len(matches2) && !matches2[k] {
-				k++
-			}
-			if k < len(matches2) && v != rune(s2[k]) {
-				t++
-			}
-			k++
-		}
-	}
-
-	t = t / 2.0
-	x1 := m / float64(len(s1))
-	x2 := m / float64(len(s2))
-	return (x1 + x2 + ((m - t) / m)) / 3
-}
-
 func (bag *Bag) CreateEdges() {
 	for i, src := range bag.Nodes {
 		for j, dst := range bag.Nodes {
 			// don't compare same node
 			if i != j {
 				var weight float64
-				switch Weighing {
+				switch bag.Weighing {
 				case "jaccard":
 					commonElements := Intersection(src.vector, dst.vector)
-					weight = 1.0 - float64(len(commonElements))/((float64(vectorLength)*2)-float64(len(commonElements)))
+					weight = 1.0 - float64(len(commonElements))/((float64(bag.vectorLength)*2)-float64(len(commonElements)))
 					break
 				case "hamming":
 					differentElements := SymmetricDifference(src.vector, dst.vector)
@@ -294,40 +216,13 @@ func (bag *Bag) CreateEdges() {
 				default:
 					// defaulted to jaccard
 					commonElements := Intersection(src.vector, dst.vector)
-					weight = 1.0 - float64(len(commonElements))/((float64(vectorLength)*2)-float64(len(commonElements)))
+					weight = 1.0 - float64(len(commonElements))/((float64(bag.vectorLength)*2)-float64(len(commonElements)))
 				}
 				edge := &Edge{i, j, weight}
 				bag.Edges = append(bag.Edges, edge)
 			}
 		}
 	}
-}
-
-func SymmetricDifference(src, dst []int) []int {
-	var diff []int
-	for i, v := range src {
-		if v != dst[i] {
-			diff = append(diff, i)
-		}
-	}
-	return diff
-}
-
-func Intersection(src, dst []int) []int {
-	intersect := make(map[int]bool)
-	for i, v := range src {
-		// Old version, only counting vector value with more than 0. So we only count occurence of a word in both sentence as similarity.
-		// if v > 0 && dst[i] > 0 {
-		// this one also counting whether if a word doesn't occur on both sentences
-		if v == dst[i] {
-			intersect[i] = true
-		}
-	}
-	var result []int
-	for k, _ := range intersect {
-		result = append(result, k)
-	}
-	return result
 }
 
 type Node struct {
@@ -346,13 +241,11 @@ type Node struct {
 	*/
 }
 
-var vectorLength int
-
 func (bag *Bag) CreateNodes() {
-	vectorLength = len(bag.Dict)
+	bag.vectorLength = len(bag.Dict)
 	for i, sentence := range bag.BagOfWordsPerSentence {
 		// vector length is len(dict)
-		vector := make([]int, vectorLength)
+		vector := make([]int, bag.vectorLength)
 		// word for word now
 		for _, word := range sentence {
 			// check word dict position, if doesn't exist, skip
@@ -401,7 +294,7 @@ func (bag *Bag) CreateBagOfWordsPerSentence(text string, done chan<- bool) {
 		sentences = append(sentences, sentence)
 	}
 	// remove doubled sentence
-	UniqSentences(sentences)
+	UniqSentences(sentences, bag.SentencesDistanceThreshold)
 	bag.BagOfWordsPerSentence = sentences
 	done <- true
 }
@@ -435,69 +328,6 @@ func (bag *Bag) CreateSentences(text string, done chan<- bool) {
 	}
 	bag.OriginalSentences = bagOfSentence
 	done <- true
-}
-
-func UniqSentences(sentences [][]string) {
-	var msens []string
-	for _, sen := range sentences {
-		merged := strings.Join(sen, " ")
-		msens = append(msens, merged)
-	}
-	// Do jarowinkler then CSIS to deduplicate sentences
-	reject := make(map[int]bool, len(msens))
-	// First JaroWinkler
-	next := 1
-	for _, sen := range msens {
-		for j := next; j < len(msens); j++ {
-			if Distance(sen, msens[j]) >= 0.95 {
-				reject[j] = true
-			}
-		}
-		next++
-	}
-	// Then CSIS
-	for i, psen := range msens {
-		for j, nsen := range msens {
-			if i != j {
-				// if i subset of j, put i in reject
-				if strings.Contains(nsen, psen) {
-					reject[i] = true
-					continue
-				}
-				// if j subset of i, put j in reject
-				if strings.Contains(psen, nsen) {
-					reject[j] = true
-					continue
-				}
-			}
-		}
-	}
-
-	sentences = [][]string{}
-	for i, sen := range msens {
-		if reject[i] {
-			continue
-		}
-		sentences = append(sentences, strings.Fields(sen))
-	}
-}
-
-func SanitizeWord(word string) string {
-	word = strings.ToLower(word)
-	var prev rune
-	word = strings.Map(func(r rune) rune {
-		// don't remove '-' if it exists after alphanumerics
-		if r == '-' && (unicode.IsDigit(prev) || unicode.IsLetter(prev)) {
-			return r
-		}
-		if !unicode.IsDigit(r) && !unicode.IsLetter(r) {
-			return -1
-		}
-		prev = r
-		return r
-	}, word)
-
-	return word
 }
 
 func (bag *Bag) CreateDictionary(text string) {
