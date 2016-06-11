@@ -34,7 +34,7 @@ type Bag struct {
 
 // The default values of each settings
 const (
-	VERSION                              = "0.4.2"
+	VERSION                              = "0.4.3"
 	DEFAULT_ALGORITHM                    = "centrality"
 	DEFAULT_WEIGHING                     = "hamming"
 	DEFAULT_DAMPING                      = 0.85
