@@ -70,6 +70,10 @@ func (bag *Bag) Set(m int, d, t, th, sth float64, alg, w string) {
 
 // Summarize the text to num sentences
 func (bag *Bag) Summarize(text string, num int) (string, error) {
+	if len(text) < 1 {
+		return "", nil
+	}
+
 	bag.CreateSentences(text)
 	bag.CreateDictionary(text)
 	bag.CreateNodes()
