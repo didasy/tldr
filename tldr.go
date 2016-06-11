@@ -120,7 +120,11 @@ func (bag *Bag) Summarize(text string, num int) (string, error) {
 		// turn into runes
 		r := []rune(res)
 		// cut
-		r = r[:bag.MaxCharacters]
+		max := len(r)
+		if max > bag.MaxCharacters {
+			max = bag.MaxCharacters
+		}
+		r = r[:max]
 		// then turn back to string
 		res = string(r)
 	}
