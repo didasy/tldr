@@ -9,6 +9,7 @@ package tldr
 import (
 	"errors"
 	"github.com/alixaxel/pagerank"
+	"sort"
 	"strings"
 	"unicode"
 )
@@ -22,20 +23,23 @@ type Bag struct {
 	Ranks                 []int
 
 	MaxCharacters              int
-	Algorithm                  string // "centrality" or "pagerank"
-	Weighing                   string // "hamming" or "jaccard"
+	Algorithm                  string // "centrality" or "pagerank" or "custom"
+	Weighing                   string // "hamming" or "jaccard" or "custom"
 	Damping                    float64
 	Tolerance                  float64
 	Threshold                  float64
 	SentencesDistanceThreshold float64
+
+	customAlgorithm func(e []*Edge) []int
+	customWeighing  func(src, dst []int) float64
 
 	vectorLength int
 }
 
 // The default values of each settings
 const (
-	VERSION                              = "0.4.3"
-	DEFAULT_ALGORITHM                    = "centrality"
+	VERSION                              = "0.4.4"
+	DEFAULT_ALGORITHM                    = "pagerank"
 	DEFAULT_WEIGHING                     = "hamming"
 	DEFAULT_DAMPING                      = 0.85
 	DEFAULT_TOLERANCE                    = 0.0001
@@ -68,26 +72,48 @@ func (bag *Bag) Set(m int, d, t, th, sth float64, alg, w string) {
 	bag.SentencesDistanceThreshold = sth
 }
 
+// Useful if you already have your own dictionary (example: from your database)
+// Dictionary is a map[string]int where the key is the word and int is the position in vector, starting from 1
+func (bag *Bag) SetDictionary(dict map[string]int) {
+	bag.Dict = dict
+}
+
+func (bag *Bag) SetCustomAlgorithm(f func(e []*Edge) []int) {
+	bag.customAlgorithm = f
+}
+
+func (bag *Bag) SetCustomWeighing(f func(src, dst []int) float64) {
+	bag.customWeighing = f
+}
+
 // Summarize the text to num sentences
 func (bag *Bag) Summarize(text string, num int) (string, error) {
 	if len(text) < 1 {
 		return "", nil
 	}
 
-	bag.CreateSentences(text)
-	bag.CreateDictionary(text)
-	bag.CreateNodes()
-	bag.CreateEdges()
+	bag.createSentences(text)
+
+	// If user already provide dictionary, pass creating dictionary
+	if len(bag.Dict) < 1 {
+		bag.createDictionary(text)
+	}
+
+	bag.createNodes()
+	bag.createEdges()
 
 	switch bag.Algorithm {
 	case "centrality":
-		bag.Centrality()
+		bag.centrality()
 		break
 	case "pagerank":
-		bag.PageRank()
+		bag.pageRank()
+		break
+	case "custom":
+		bag.Ranks = bag.customAlgorithm(bag.Edges)
 		break
 	default:
-		bag.Centrality()
+		bag.pageRank()
 	}
 
 	// if no ranks, return error
@@ -104,7 +130,7 @@ func (bag *Bag) Summarize(text string, num int) (string, error) {
 	// get only top num of ranks
 	idx := bag.Ranks[:num]
 	// sort it ascending by how the sentences appeared on the original text
-	HeapSortInt(idx)
+	sort.Ints(idx)
 	var res string
 	for i, _ := range idx {
 		res += (bag.OriginalSentences[idx[i]] + " ")
@@ -137,7 +163,7 @@ type Rank struct {
 	score float64
 }
 
-func (bag *Bag) Centrality() {
+func (bag *Bag) centrality() {
 	// first remove edges under Threshold weight
 	var newEdges []*Edge
 	for _, edge := range bag.Edges {
@@ -146,7 +172,7 @@ func (bag *Bag) Centrality() {
 		}
 	}
 	// sort them by weight descending
-	HeapSortEdge(newEdges)
+	sort.Sort(ByWeight(newEdges))
 	ReverseEdge(newEdges)
 	rankBySrc := make([]int, len(newEdges))
 	for i, v := range newEdges {
@@ -165,7 +191,7 @@ func (bag *Bag) Centrality() {
 	bag.Ranks = uniq
 }
 
-func (bag *Bag) PageRank() {
+func (bag *Bag) pageRank() {
 	// first remove edges under Threshold weight
 	var newEdges []*Edge
 	for _, edge := range bag.Edges {
@@ -183,8 +209,8 @@ func (bag *Bag) PageRank() {
 	graph.Rank(bag.Damping, bag.Tolerance, func(sentenceIndex uint32, rank float64) {
 		ranks = append(ranks, &Rank{int(sentenceIndex), rank})
 	})
-	// sort ranks into an array of sentence index, by rank descending
-	HeapSortRank(ranks)
+	// sort ranks into an array of sentence index, by score descending
+	sort.Sort(ByScore(ranks))
 	ReverseRank(ranks)
 	idx := make([]int, len(ranks))
 	for i, v := range ranks {
@@ -200,7 +226,7 @@ type Edge struct {
 	weight float64 // weight of the similarity between two sentences
 }
 
-func (bag *Bag) CreateEdges() {
+func (bag *Bag) createEdges() {
 	for i, src := range bag.Nodes {
 		for j, dst := range bag.Nodes {
 			// don't compare same node
@@ -215,10 +241,12 @@ func (bag *Bag) CreateEdges() {
 					differentElements := SymmetricDifference(src.vector, dst.vector)
 					weight = float64(len(differentElements))
 					break
+				case "custom":
+					weight = bag.customWeighing(src.vector, dst.vector)
+					break
 				default:
-					// defaulted to jaccard
-					commonElements := Intersection(src.vector, dst.vector)
-					weight = 1.0 - float64(len(commonElements))/((float64(bag.vectorLength)*2)-float64(len(commonElements)))
+					differentElements := SymmetricDifference(src.vector, dst.vector)
+					weight = float64(len(differentElements))
 				}
 				edge := &Edge{i, j, weight}
 				bag.Edges = append(bag.Edges, edge)
@@ -243,7 +271,7 @@ type Node struct {
 	*/
 }
 
-func (bag *Bag) CreateNodes() {
+func (bag *Bag) createNodes() {
 	bag.vectorLength = len(bag.Dict)
 	for i, sentence := range bag.BagOfWordsPerSentence {
 		// vector length is len(dict)
@@ -266,7 +294,7 @@ func (bag *Bag) CreateNodes() {
 	}
 }
 
-func (bag *Bag) CreateSentences(text string) {
+func (bag *Bag) createSentences(text string) {
 	// trim all spaces
 	text = strings.TrimSpace(text)
 	// tokenize text as sentences
@@ -288,7 +316,7 @@ func (bag *Bag) CreateSentences(text string) {
 	UniqSentences(bag.BagOfWordsPerSentence, bag.SentencesDistanceThreshold)
 }
 
-func (bag *Bag) CreateDictionary(text string) {
+func (bag *Bag) createDictionary(text string) {
 	// trim all spaces
 	text = strings.TrimSpace(text)
 	// lowercase the text

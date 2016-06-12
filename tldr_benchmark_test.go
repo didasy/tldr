@@ -30,6 +30,8 @@ func BenchmarkSummarizeCentralityHamming(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		benchSummarizer = tldr.New()
+		benchSummarizer.Algorithm = "centrality"
+		benchSummarizer.Weighing = "hamming"
 		rtxt, _ = benchSummarizer.Summarize(benchText, NUM_SENTENCES)
 	}
 
@@ -41,6 +43,7 @@ func BenchmarkSummarizeCentralityJaccard(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		benchSummarizer = tldr.New()
+		benchSummarizer.Algorithm = "centrality"
 		benchSummarizer.Weighing = "jaccard"
 		rtxt, _ = benchSummarizer.Summarize(benchText, NUM_SENTENCES)
 	}
@@ -54,6 +57,7 @@ func BenchmarkSummarizePagerankHamming(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		benchSummarizer = tldr.New()
 		benchSummarizer.Algorithm = "pagerank"
+		benchSummarizer.Weighing = "hamming"
 		rtxt, _ = benchSummarizer.Summarize(benchText, NUM_SENTENCES)
 	}
 
