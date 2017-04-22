@@ -8,10 +8,11 @@ package tldr
 
 import (
 	"errors"
-	"github.com/alixaxel/pagerank"
 	"sort"
 	"strings"
 	"unicode"
+
+	"github.com/alixaxel/pagerank"
 )
 
 type Bag struct {
@@ -88,14 +89,18 @@ func (bag *Bag) SetCustomWeighing(f func(src, dst []int) float64) {
 
 // Summarize the text to num sentences
 func (bag *Bag) Summarize(text string, num int) (string, error) {
-	if len(text) < 1 {
+	text = strings.TrimSpace(text)
+	if len(text) < 1 && len(bag.OriginalSentences) == 0 {
 		return "", nil
 	}
 
-	bag.createSentences(text)
+	bag.createSentences(text) // only actually creates sentences if no OrignalSentences
 
 	// If user already provide dictionary, pass creating dictionary
 	if len(bag.Dict) < 1 {
+		if text == "" {
+			text = strings.TrimSpace(strings.Join(bag.OriginalSentences, " "))
+		}
 		bag.createDictionary(text)
 	}
 
@@ -295,11 +300,13 @@ func (bag *Bag) createNodes() {
 }
 
 func (bag *Bag) createSentences(text string) {
-	// trim all spaces
-	text = strings.TrimSpace(text)
-	// tokenize text as sentences
-	// sentence is a group of words separated by whitespaces or punctuation other than !?.
-	bag.OriginalSentences = TokenizeSentences(text)
+	if len(bag.OriginalSentences) == 0 {
+		// trim all spaces
+		// done by calling func: text = strings.TrimSpace(text)
+		// tokenize text as sentences
+		// sentence is a group of words separated by whitespaces or punctuation other than !?.
+		bag.OriginalSentences = TokenizeSentences(text)
+	}
 
 	// from original sentences, explode each sentences into bag of words
 	bag.BagOfWordsPerSentence = [][]string{}
@@ -318,7 +325,7 @@ func (bag *Bag) createSentences(text string) {
 
 func (bag *Bag) createDictionary(text string) {
 	// trim all spaces
-	text = strings.TrimSpace(text)
+	// this already done by calling func:	text = strings.TrimSpace(text)
 	// lowercase the text
 	text = strings.ToLower(text)
 	// remove all non alphanumerics but spaces
