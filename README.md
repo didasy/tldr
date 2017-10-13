@@ -41,7 +41,7 @@ func main() {
 	textB, _ := ioutil.ReadFile("./sample.txt")
 	text := string(textB)
 	bag := tldr.New()
-	result := bag.Summarize(text, intoSentences)
+	result, _ := bag.Summarize(text, intoSentences)
 	fmt.Println(result)
 }
 ```
