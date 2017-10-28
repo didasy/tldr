@@ -33,6 +33,7 @@ type Bag struct {
 
 	customAlgorithm func(e []*Edge) []int
 	customWeighing  func(src, dst []int) float64
+	wordTokenizer   func(sentence string) []string
 
 	vectorLength int
 }
@@ -49,6 +50,15 @@ const (
 	DEFAULT_SENTENCES_DISTANCE_THRESHOLD = 0.95
 )
 
+func defaultWordTokenizer(sentence string) []string {
+	words := strings.Fields(sentence)
+	for i, word := range words {
+		words[i] = SanitizeWord(word)
+	}
+
+	return words
+}
+
 // Create new summarizer
 func New() *Bag {
 	return &Bag{
@@ -59,6 +69,7 @@ func New() *Bag {
 		Tolerance:                  DEFAULT_TOLERANCE,
 		Threshold:                  DEFAULT_THRESHOLD,
 		SentencesDistanceThreshold: DEFAULT_SENTENCES_DISTANCE_THRESHOLD,
+		wordTokenizer:              defaultWordTokenizer,
 	}
 }
 
@@ -85,6 +96,10 @@ func (bag *Bag) SetCustomAlgorithm(f func(e []*Edge) []int) {
 
 func (bag *Bag) SetCustomWeighing(f func(src, dst []int) float64) {
 	bag.customWeighing = f
+}
+
+func (bag *Bag) SetWordTokenizer(f func(string) []string) {
+	bag.wordTokenizer = f
 }
 
 // Summarize the text to num sentences
@@ -311,11 +326,7 @@ func (bag *Bag) createSentences(text string) {
 	// from original sentences, explode each sentences into bag of words
 	bag.BagOfWordsPerSentence = [][]string{}
 	for _, sentence := range bag.OriginalSentences {
-		words := strings.Fields(sentence)
-		// then sanitize each word
-		for i, word := range words {
-			words[i] = SanitizeWord(word)
-		}
+		words := bag.wordTokenizer(sentence)
 		bag.BagOfWordsPerSentence = append(bag.BagOfWordsPerSentence, words)
 	}
 
