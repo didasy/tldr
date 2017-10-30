@@ -9,7 +9,7 @@ import (
 var sanitize, sentenceTokenizer *regexp.Regexp
 
 func init() {
-	sanitize = regexp.MustCompile(`([^a-z0-9]{2,}|[^a-z0-9_'-])`)
+	sanitize = regexp.MustCompile(`([^\p{L}\d]{2,}|[^\p{L}\d_'-])`)
 	sentenceTokenizer = regexp.MustCompile(`([\.\?\!])(?:\s|$)`)
 }
 
