@@ -40,7 +40,7 @@ type Bag struct {
 
 // The default values of each settings
 const (
-	VERSION                              = "0.4.4"
+	VERSION                              = "0.5.0"
 	DEFAULT_ALGORITHM                    = "pagerank"
 	DEFAULT_WEIGHING                     = "hamming"
 	DEFAULT_DAMPING                      = 0.85
