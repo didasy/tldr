@@ -4,7 +4,7 @@
 [![Build Status](https://travis-ci.org/JesusIslam/tldr.svg?branch=master)](https://travis-ci.org/JesusIslam/tldr)
 [![Coverage Status](https://coveralls.io/repos/github/JesusIslam/tldr/badge.svg?branch=master)](https://coveralls.io/github/JesusIslam/tldr?branch=master)
 [![GoDoc](https://godoc.org/github.com/JesusIslam/tldr?status.svg)](https://godoc.org/github.com/JesusIslam/tldr)
-[![GoReport](https://goreportcard.com/badge/github.com/JesusIslam/tldr)
+[![Go Report Card](https://goreportcard.com/badge/github.com/JesusIslam/tldr)](https://goreportcard.com/report/github.com/JesusIslam/tldr)
 
 
 ### What?
