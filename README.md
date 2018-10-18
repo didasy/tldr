@@ -4,6 +4,8 @@
 [![Build Status](https://travis-ci.org/JesusIslam/tldr.svg?branch=master)](https://travis-ci.org/JesusIslam/tldr)
 [![Coverage Status](https://coveralls.io/repos/github/JesusIslam/tldr/badge.svg?branch=master)](https://coveralls.io/github/JesusIslam/tldr?branch=master)
 [![GoDoc](https://godoc.org/github.com/JesusIslam/tldr?status.svg)](https://godoc.org/github.com/JesusIslam/tldr)
+[![GoReport](https://goreportcard.com/badge/github.com/JesusIslam/tldr)
+
 
 ### What?
 tldr is a golang package to summarize a text automatically using [lexrank](http://www.cs.cmu.edu/afs/cs/project/jair/pub/volume22/erkan04a-html/erkan04a.html) algorithm.
