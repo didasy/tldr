@@ -5,6 +5,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/JesusIslam/tldr/badge.svg?branch=master)](https://coveralls.io/github/JesusIslam/tldr?branch=master)
 [![GoDoc](https://godoc.org/github.com/JesusIslam/tldr?status.svg)](https://godoc.org/github.com/JesusIslam/tldr)
 [![Go Report Card](https://goreportcard.com/badge/github.com/JesusIslam/tldr)](https://goreportcard.com/report/github.com/JesusIslam/tldr)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FJesusIslam%2Ftldr.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2FJesusIslam%2Ftldr?ref=badge_shield)
 
 
 ### What?
@@ -55,5 +56,8 @@ tldr depends on [pagerank](https://github.com/alixaxel/pagerank) package, and yo
 
 ### License?
 Check the LICENSE file. tldr: MIT.
+
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FJesusIslam%2Ftldr.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2FJesusIslam%2Ftldr?ref=badge_large)
 
 ## Have fun!
