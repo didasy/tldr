@@ -143,7 +143,7 @@ func (bag *Bag) Summarize(text string, num int) (string, error) {
 
 	// guard so it won't crash but return only the highest rank sentence
 	// if num is invalid
-	if num > (len(bag.Ranks)-1) || num < 1 {
+	if num > len(bag.Ranks) || num < 1 {
 		num = 1
 	}
 
