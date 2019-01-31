@@ -59,7 +59,7 @@ func defaultWordTokenizer(sentence string) []string {
 	return words
 }
 
-// Create new summarizer
+// New creates a new summarizer
 func New() *Bag {
 	return &Bag{
 		MaxCharacters:              DEFAULT_MAX_CHARACTERS,
@@ -137,45 +137,52 @@ func (bag *Bag) Summarize(text string, num int) (string, error) {
 	}
 
 	// if no ranks, return error
-	if len(bag.Ranks) == 0 {
+	lenRanks := len(bag.Ranks)
+	if lenRanks == 0 {
 		return "", errors.New("Ranks is empty")
 	}
 
 	// guard so it won't crash but return only the highest rank sentence
 	// if num is invalid
-	if num > len(bag.Ranks) || num < 1 {
+	if num < 1 {
 		num = 1
+	} else if num > lenRanks {
+		// in this case take all
+		num = lenRanks
 	}
 
 	// get only top num of ranks
 	idx := bag.Ranks[:num]
 	// sort it ascending by how the sentences appeared on the original text
 	sort.Ints(idx)
+
+	return bag.concatResult(idx), nil
+}
+
+// concatenate sentences at idx to result string
+func (bag *Bag) concatResult(idx []int) string {
 	var res string
-	for i, _ := range idx {
-		res += (bag.OriginalSentences[idx[i]] + " ")
+	if bag.MaxCharacters > 0 {
+		for i := range idx {
+			lenRes := len([]rune(res))
+			lenOrig := len([]rune(bag.OriginalSentences[idx[i]]))
+			if lenRes+lenOrig <= bag.MaxCharacters {
+				res += bag.OriginalSentences[idx[i]]
+				res += "\n\n"
+			} else {
+				n := bag.MaxCharacters - (lenRes + lenOrig)
+				res += bag.OriginalSentences[idx[i]][:n]
+			}
+		}
+		return strings.TrimSpace(res)
+	}
+
+	for i := range idx {
+		res += bag.OriginalSentences[idx[i]]
 		res += "\n\n"
 	}
 
-	// trim it from spaces
-	res = strings.TrimSpace(res)
-
-	// Truncate if it has more than n characters
-	// Note this is not bytes length
-	if bag.MaxCharacters > 0 {
-		// turn into runes
-		r := []rune(res)
-		// cut
-		max := len(r)
-		if max > bag.MaxCharacters {
-			max = bag.MaxCharacters
-		}
-		r = r[:max]
-		// then turn back to string
-		res = string(r)
-	}
-
-	return res, nil
+	return strings.TrimSpace(res)
 }
 
 type Rank struct {
