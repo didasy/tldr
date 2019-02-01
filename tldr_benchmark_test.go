@@ -14,7 +14,7 @@ const (
 var (
 	benchSummarizer *tldr.Bag
 	benchText       string
-	resultText      string
+	resultText      []string
 )
 
 func init() {
@@ -26,7 +26,7 @@ func init() {
 }
 
 func BenchmarkSummarizeCentralityHamming(b *testing.B) {
-	var rtxt string
+	var rtxt []string
 
 	for n := 0; n < b.N; n++ {
 		benchSummarizer = tldr.New()
@@ -39,7 +39,7 @@ func BenchmarkSummarizeCentralityHamming(b *testing.B) {
 }
 
 func BenchmarkSummarizeCentralityJaccard(b *testing.B) {
-	var rtxt string
+	var rtxt []string
 
 	for n := 0; n < b.N; n++ {
 		benchSummarizer = tldr.New()
@@ -52,7 +52,7 @@ func BenchmarkSummarizeCentralityJaccard(b *testing.B) {
 }
 
 func BenchmarkSummarizePagerankHamming(b *testing.B) {
-	var rtxt string
+	var rtxt []string
 
 	for n := 0; n < b.N; n++ {
 		benchSummarizer = tldr.New()
@@ -65,7 +65,7 @@ func BenchmarkSummarizePagerankHamming(b *testing.B) {
 }
 
 func BenchmarkSummarizePagerankJaccard(b *testing.B) {
-	var rtxt string
+	var rtxt []string
 
 	for n := 0; n < b.N; n++ {
 		benchSummarizer = tldr.New()

@@ -103,10 +103,10 @@ func (bag *Bag) SetWordTokenizer(f func(string) []string) {
 }
 
 // Summarize the text to num sentences
-func (bag *Bag) Summarize(text string, num int) (string, error) {
+func (bag *Bag) Summarize(text string, num int) ([]string, error) {
 	text = strings.TrimSpace(text)
 	if len(text) < 1 && len(bag.OriginalSentences) == 0 {
-		return "", nil
+		return nil, nil
 	}
 
 	bag.createSentences(text) // only actually creates sentences if no OrignalSentences
@@ -139,7 +139,7 @@ func (bag *Bag) Summarize(text string, num int) (string, error) {
 	// if no ranks, return error
 	lenRanks := len(bag.Ranks)
 	if lenRanks == 0 {
-		return "", errors.New("Ranks is empty")
+		return nil, errors.New("Ranks is empty")
 	}
 
 	// guard so it won't crash but return only the highest rank sentence
@@ -160,29 +160,28 @@ func (bag *Bag) Summarize(text string, num int) (string, error) {
 }
 
 // concatenate sentences at idx to result string
-func (bag *Bag) concatResult(idx []int) string {
-	var res string
+func (bag *Bag) concatResult(idx []int) []string {
+	var res []string
 	if bag.MaxCharacters > 0 {
+		lenRes := 0
 		for i := range idx {
-			lenRes := len([]rune(res))
 			lenOrig := len([]rune(bag.OriginalSentences[idx[i]]))
 			if lenRes+lenOrig <= bag.MaxCharacters {
-				res += bag.OriginalSentences[idx[i]]
-				res += "\n\n"
+				res = append(res, bag.OriginalSentences[idx[i]])
 			} else {
 				n := bag.MaxCharacters - lenRes
-				res += bag.OriginalSentences[idx[i]][:n]
+				res = append(res, bag.OriginalSentences[idx[i]][:n])
 			}
+			lenRes += lenOrig
 		}
-		return strings.TrimSpace(res)
+		return res
 	}
 
 	for i := range idx {
-		res += bag.OriginalSentences[idx[i]]
-		res += "\n\n"
+		res = append(res, bag.OriginalSentences[idx[i]])
 	}
 
-	return strings.TrimSpace(res)
+	return res
 }
 
 type Rank struct {

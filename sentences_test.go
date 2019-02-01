@@ -1,6 +1,7 @@
 package tldr
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -18,7 +19,7 @@ func TestSentences(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if result != "it's fleece was white as snow," {
+	if strings.Join(result, "\n\n") != "it's fleece was white as snow," {
 		t.Error("result not as expected")
 	}
 }

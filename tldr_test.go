@@ -40,7 +40,8 @@ var _ = Describe("tldr", func() {
 	Describe("Test summarizing", func() {
 		Context("Summarize sample.txt to 3 sentences", func() {
 			It("Should return a string match with result.txt without error", func() {
-				sum, err := summarizer.Summarize(text, 3)
+				sums, err := summarizer.Summarize(text, 3)
+				sum := strings.Join(sums, "\n\n")
 				Expect(err).To(BeNil())
 				Expect(sum).To(BeAssignableToTypeOf(""))
 				Expect(sum).NotTo(BeEmpty())
@@ -49,7 +50,8 @@ var _ = Describe("tldr", func() {
 		})
 		Context("Summarize sample.txt to 1 sentence but by giving it invalid parameter", func() {
 			It("Should return a string with one sentence without error", func() {
-				sum, err := summarizer.Summarize(text, 10000)
+				sums, err := summarizer.Summarize(text, 10000)
+				sum := strings.Join(sums, "\n\n")
 				Expect(err).To(BeNil())
 				Expect(sum).To(BeAssignableToTypeOf(""))
 				Expect(sum).NotTo(BeEmpty())
