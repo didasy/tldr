@@ -144,11 +144,8 @@ func (bag *Bag) Summarize(text string, num int) ([]string, error) {
 
 	// guard so it won't crash but return only the highest rank sentence
 	// if num is invalid
-	if num < 1 {
+	if num > lenRanks || num < 1 {
 		num = 1
-	} else if num > lenRanks {
-		// in this case take all
-		num = lenRanks
 	}
 
 	// get only top num of ranks
@@ -170,7 +167,11 @@ func (bag *Bag) concatResult(idx []int) []string {
 				res = append(res, bag.OriginalSentences[idx[i]])
 			} else {
 				n := bag.MaxCharacters - lenRes
+				if n > lenOrig {
+					n = lenOrig
+				}
 				res = append(res, bag.OriginalSentences[idx[i]][:n])
+				break
 			}
 			lenRes += lenOrig
 		}
