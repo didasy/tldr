@@ -170,7 +170,7 @@ func (bag *Bag) concatResult(idx []int) string {
 				res += bag.OriginalSentences[idx[i]]
 				res += "\n\n"
 			} else {
-				n := bag.MaxCharacters - (lenRes + lenOrig)
+				n := bag.MaxCharacters - lenRes
 				res += bag.OriginalSentences[idx[i]][:n]
 			}
 		}
