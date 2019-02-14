@@ -170,7 +170,7 @@ func (bag *Bag) concatResult(idx []int) []string {
 				if n > lenOrig {
 					n = lenOrig
 				}
-				res = append(res, bag.OriginalSentences[idx[i]][:n])
+				res = append(res, string([]rune(bag.OriginalSentences[idx[i]])[:n]))
 				break
 			}
 			lenRes += lenOrig
