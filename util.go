@@ -155,7 +155,7 @@ func Intersection(src, dst []int) []int {
 		}
 	}
 	var result []int
-	for k, _ := range intersect {
+	for k := range intersect {
 		result = append(result, k)
 	}
 	return result

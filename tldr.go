@@ -7,7 +7,7 @@ WARNING: This package is not thread safe, so you cannot use *Bag from many gorou
 package tldr
 
 import (
-	"errors"
+	"encoding/json"
 	"sort"
 	"strings"
 	"unicode"
@@ -38,9 +38,14 @@ type Bag struct {
 	vectorLength int
 }
 
+func (b *Bag) String() string {
+	r, _ := json.MarshalIndent(b, "", "  ")
+	return string(r)
+}
+
 // The default values of each settings
 const (
-	VERSION                              = "0.5.0"
+	VERSION                              = "0.6.0"
 	DEFAULT_ALGORITHM                    = "pagerank"
 	DEFAULT_WEIGHING                     = "hamming"
 	DEFAULT_DAMPING                      = 0.85
@@ -55,7 +60,6 @@ func defaultWordTokenizer(sentence string) []string {
 	for i, word := range words {
 		words[i] = SanitizeWord(word)
 	}
-
 	return words
 }
 
@@ -125,13 +129,10 @@ func (bag *Bag) Summarize(text string, num int) ([]string, error) {
 	switch bag.Algorithm {
 	case "centrality":
 		bag.centrality()
-		break
 	case "pagerank":
 		bag.pageRank()
-		break
 	case "custom":
 		bag.Ranks = bag.customAlgorithm(bag.Edges)
-		break
 	default:
 		bag.pageRank()
 	}
@@ -139,7 +140,7 @@ func (bag *Bag) Summarize(text string, num int) ([]string, error) {
 	// if no ranks, return error
 	lenRanks := len(bag.Ranks)
 	if lenRanks == 0 {
-		return nil, errors.New("Ranks is empty")
+		return nil, nil
 	}
 
 	// guard so it won't crash but return only the highest rank sentence
@@ -263,14 +264,11 @@ func (bag *Bag) createEdges() {
 				case "jaccard":
 					commonElements := Intersection(src.vector, dst.vector)
 					weight = 1.0 - float64(len(commonElements))/((float64(bag.vectorLength)*2)-float64(len(commonElements)))
-					break
 				case "hamming":
 					differentElements := SymmetricDifference(src.vector, dst.vector)
 					weight = float64(len(differentElements))
-					break
 				case "custom":
 					weight = bag.customWeighing(src.vector, dst.vector)
-					break
 				default:
 					differentElements := SymmetricDifference(src.vector, dst.vector)
 					weight = float64(len(differentElements))
