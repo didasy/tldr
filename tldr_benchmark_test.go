@@ -1,7 +1,7 @@
 package tldr_test
 
 import (
-	"github.com/JesusIslam/tldr"
+	"github.com/didasy/tldr"
 	"io/ioutil"
 	"testing"
 )
