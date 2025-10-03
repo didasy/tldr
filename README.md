@@ -1,11 +1,10 @@
 # tldr
 ### When you are too lazy to read the entire text
 ------------------------------------------------------
-[![Build Status](https://travis-ci.org/JesusIslam/tldr.svg?branch=master)](https://travis-ci.org/JesusIslam/tldr)
-[![Coverage Status](https://coveralls.io/repos/github/JesusIslam/tldr/badge.svg?branch=master)](https://coveralls.io/github/JesusIslam/tldr?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/didasy/tldr/badge.svg?branch=master)](https://coveralls.io/github/didasy/tldr?branch=master)
 [![GoDoc](https://godoc.org/github.com/didasy/tldr?status.svg)](https://godoc.org/github.com/didasy/tldr)
 [![Go Report Card](https://goreportcard.com/badge/github.com/didasy/tldr)](https://goreportcard.com/report/github.com/didasy/tldr)
-[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FJesusIslam%2Ftldr.svg?type=small)](https://app.fossa.io/projects/git%2Bgithub.com%2FJesusIslam%2Ftldr?ref=badge_small)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fdidasy%2Ftldr.svg?type=small)](https://app.fossa.io/projects/git%2Bgithub.com%2Fdidasy%2Ftldr?ref=badge_small)
 
 
 ### What?
