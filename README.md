@@ -15,13 +15,26 @@ tldr is a golang package to summarize a text automatically using [lexrank](http:
 There are two main steps in lexrank, weighing, and ranking. tldr have two weighing and two ranking algorithm included, they are Jaccard coeficient and Hamming distance, then PageRank and centrality, respectively. The default settings use Hamming distance and pagerank.
 
 ### Is This Fast?
-Test it yourself, my system is i3-3217@1.8GHz with single channel 4GB RAM using Ubuntu 15.10 with kernel 4.5.0
 ```
 $ go test -bench . -benchmem -benchtime 5s -cpu 4
-BenchmarkSummarizeCentralityHamming-4	    2000	   6429340 ns/op	  401204 B/op	    3551 allocs/op
-BenchmarkSummarizeCentralityJaccard-4	     200	  30036357 ns/op	 3449461 B/op	   12543 allocs/op
-BenchmarkSummarizePagerankHamming-4  	    1000	   7015008 ns/op	  420665 B/op	    3731 allocs/op
-BenchmarkSummarizePagerankJaccard-4  	     200	  31066764 ns/op	 3469629 B/op	   12737 allocs/op
+Running Suite: Tldr Suite
+=========================
+Random Seed: 1759506557
+Will run 8 of 8 specs
+
+••••••••
+Ran 8 of 8 Specs in 0.012 seconds
+SUCCESS! -- 8 Passed | 0 Failed | 0 Pending | 0 Skipped
+goos: linux
+goarch: amd64
+pkg: github.com/didasy/tldr
+cpu: AMD Ryzen 5 5600G with Radeon Graphics
+BenchmarkSummarizeCentralityHamming-4               5877            896338 ns/op          177320 B/op       1898 allocs/op
+BenchmarkSummarizeCentralityJaccard-4               6562            885374 ns/op          177221 B/op       1898 allocs/op
+BenchmarkSummarizePagerankHamming-4                 5832            962000 ns/op          200830 B/op       2086 allocs/op
+BenchmarkSummarizePagerankJaccard-4                 5949            962579 ns/op          200865 B/op       2086 allocs/op
+PASS
+ok      github.com/didasy/tldr  22.840s
 ```
 So, not bad huh?
 

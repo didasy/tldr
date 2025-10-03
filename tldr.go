@@ -193,53 +193,60 @@ type Rank struct {
 
 func (bag *Bag) centrality() {
 	// first remove edges under Threshold weight
-	var newEdges []*Edge
+	// Pre-allocate with estimated capacity to reduce allocations
+	newEdges := make([]*Edge, 0, len(bag.Edges)/2) // Estimate half edges pass threshold
 	for _, edge := range bag.Edges {
 		if edge.weight > bag.Threshold {
 			newEdges = append(newEdges, edge)
 		}
 	}
+
 	// sort them by weight descending
 	sort.Sort(ByWeight(newEdges))
 	ReverseEdge(newEdges)
-	rankBySrc := make([]int, len(newEdges))
-	for i, v := range newEdges {
-		rankBySrc[i] = v.src
-	}
-	// uniq it without disturbing the order
-	m := make(map[int]bool)
-	var uniq []int
-	for _, v := range rankBySrc {
-		if m[v] {
-			continue
+
+	// uniq it without disturbing the order - use map for O(1) lookup
+	seen := make(map[int]bool, len(newEdges)/4) // Estimate quarter are unique
+	ranks := make([]int, 0, len(newEdges)/4)     // Pre-allocate result
+
+	for _, edge := range newEdges {
+		if !seen[edge.src] {
+			seen[edge.src] = true
+			ranks = append(ranks, edge.src)
 		}
-		uniq = append(uniq, v)
-		m[v] = true
 	}
-	bag.Ranks = uniq
+
+	bag.Ranks = ranks
 }
 
 func (bag *Bag) pageRank() {
 	// first remove edges under Threshold weight
-	var newEdges []*Edge
+	// Pre-allocate with estimated capacity
+	newEdges := make([]*Edge, 0, len(bag.Edges)/2) // Estimate half edges pass threshold
 	for _, edge := range bag.Edges {
 		if edge.weight > bag.Threshold {
 			newEdges = append(newEdges, edge)
 		}
 	}
+
 	// then page rank them
 	graph := pagerank.NewGraph()
 	defer graph.Reset()
 	for _, edge := range newEdges {
 		graph.Link(uint32(edge.src), uint32(edge.dst), edge.weight)
 	}
-	var ranks []*Rank
+
+	// Pre-allocate ranks slice with estimated capacity
+	ranks := make([]*Rank, 0, len(bag.Nodes))
 	graph.Rank(bag.Damping, bag.Tolerance, func(sentenceIndex uint32, rank float64) {
 		ranks = append(ranks, &Rank{int(sentenceIndex), rank})
 	})
+
 	// sort ranks into an array of sentence index, by score descending
 	sort.Sort(ByScore(ranks))
 	ReverseRank(ranks)
+
+	// Pre-allocate result slice
 	idx := make([]int, len(ranks))
 	for i, v := range ranks {
 		idx[i] = v.idx
@@ -255,26 +262,52 @@ type Edge struct {
 }
 
 func (bag *Bag) createEdges() {
+	// Pre-allocate edges slice with exact size needed (n * (n-1))
+	nodeCount := len(bag.Nodes)
+	bag.Edges = make([]*Edge, 0, nodeCount*(nodeCount-1))
+
+	// Cache frequently used values
+	vectorLengthFloat := float64(bag.vectorLength)
+	weighing := bag.Weighing
+	customWeighing := bag.customWeighing
+
 	for i, src := range bag.Nodes {
 		for j, dst := range bag.Nodes {
 			// don't compare same node
 			if i != j {
 				var weight float64
-				switch bag.Weighing {
+				switch weighing {
 				case "jaccard":
-					commonElements := Intersection(src.vector, dst.vector)
-					weight = 1.0 - float64(len(commonElements))/((float64(bag.vectorLength)*2)-float64(len(commonElements)))
+					// Inline calculation to avoid function call overhead
+					common := 0
+					for k := range src.vector {
+						if src.vector[k] == dst.vector[k] {
+							common++
+						}
+					}
+					weight = 1.0 - float64(common)/((vectorLengthFloat*2)-float64(common))
 				case "hamming":
-					differentElements := SymmetricDifference(src.vector, dst.vector)
-					weight = float64(len(differentElements))
+					// Inline calculation to avoid function call overhead
+					different := 0
+					for k := range src.vector {
+						if src.vector[k] != dst.vector[k] {
+							different++
+						}
+					}
+					weight = float64(different)
 				case "custom":
-					weight = bag.customWeighing(src.vector, dst.vector)
+					weight = customWeighing(src.vector, dst.vector)
 				default:
-					differentElements := SymmetricDifference(src.vector, dst.vector)
-					weight = float64(len(differentElements))
+					// Inline hamming calculation
+					different := 0
+					for k := range src.vector {
+						if src.vector[k] != dst.vector[k] {
+							different++
+						}
+					}
+					weight = float64(different)
 				}
-				edge := &Edge{i, j, weight}
-				bag.Edges = append(bag.Edges, edge)
+				bag.Edges = append(bag.Edges, &Edge{i, j, weight})
 			}
 		}
 	}
@@ -298,24 +331,22 @@ type Node struct {
 
 func (bag *Bag) createNodes() {
 	bag.vectorLength = len(bag.Dict)
+	// Pre-allocate nodes slice to avoid multiple allocations
+	bag.Nodes = make([]*Node, 0, len(bag.BagOfWordsPerSentence))
+
 	for i, sentence := range bag.BagOfWordsPerSentence {
 		// vector length is len(dict)
 		vector := make([]int, bag.vectorLength)
 		// word for word now
 		for _, word := range sentence {
 			// check word dict position, if doesn't exist, skip
-			if bag.Dict[word] == 0 {
-				continue
+			if dictPos, exists := bag.Dict[word]; exists && dictPos > 0 {
+				// minus 1, because array started from 0 and lowest dict is 1
+				vector[dictPos-1] = 1
 			}
-			// minus 1, because array started from 0 and lowest dict is 1
-			pos := bag.Dict[word] - 1
-			// set 1 to the position
-			vector[pos] = 1
 		}
 		// vector is now created, put it into the node
-		node := &Node{i, vector}
-		// node is now completed, put into the bag
-		bag.Nodes = append(bag.Nodes, node)
+		bag.Nodes = append(bag.Nodes, &Node{i, vector})
 	}
 }
 
@@ -329,7 +360,8 @@ func (bag *Bag) createSentences(text string) {
 	}
 
 	// from original sentences, explode each sentences into bag of words
-	bag.BagOfWordsPerSentence = [][]string{}
+	// Pre-allocate to avoid multiple allocations
+	bag.BagOfWordsPerSentence = make([][]string, 0, len(bag.OriginalSentences))
 	for _, sentence := range bag.OriginalSentences {
 		words := bag.wordTokenizer(sentence)
 		bag.BagOfWordsPerSentence = append(bag.BagOfWordsPerSentence, words)

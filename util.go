@@ -145,64 +145,78 @@ func SymmetricDifference(src, dst []int) []int {
 }
 
 func Intersection(src, dst []int) []int {
-	intersect := make(map[int]bool)
+	// Pre-allocate slice with reasonable capacity to avoid multiple allocations
+	result := make([]int, 0, len(src)/4) // Estimate 25% intersection
+
 	for i, v := range src {
-		// Old version, only counting vector value with more than 0. So we only count occurence of a word in both sentence as similarity.
-		// if v > 0 && dst[i] > 0 {
-		// this one also counting whether if a word doesn't occur on both sentences
 		if v == dst[i] {
-			intersect[i] = true
+			result = append(result, i)
 		}
-	}
-	var result []int
-	for k := range intersect {
-		result = append(result, k)
 	}
 	return result
 }
 
 func UniqSentences(sentences [][]string, sentenceDistanceThreshold float64) {
-	var msens []string
+	// Pre-allocate msens with exact capacity
+	msens := make([]string, 0, len(sentences))
 	for _, sen := range sentences {
-		merged := strings.Join(sen, " ")
-		msens = append(msens, merged)
+		msens = append(msens, strings.Join(sen, " "))
 	}
+
 	// Do jarowinkler then CSIS to deduplicate sentences
 	reject := make(map[int]bool, len(msens))
-	// First JaroWinkler
-	next := 1
-	for _, sen := range msens {
-		for j := next; j < len(msens); j++ {
-			if Distance(sen, msens[j]) >= sentenceDistanceThreshold {
+
+	// First JaroWinkler - optimized to avoid redundant comparisons
+	for i := 0; i < len(msens)-1; i++ {
+		if reject[i] {
+			continue // Skip if already rejected
+		}
+		sen := msens[i]
+		for j := i + 1; j < len(msens); j++ {
+			if !reject[j] && Distance(sen, msens[j]) >= sentenceDistanceThreshold {
 				reject[j] = true
 			}
 		}
-		next++
 	}
-	// Then CSIS
-	for i, psen := range msens {
-		for j, nsen := range msens {
-			if i != j {
+
+	// Then CSIS - optimized to avoid redundant comparisons
+	for i := 0; i < len(msens)-1; i++ {
+		if reject[i] {
+			continue
+		}
+		psen := msens[i]
+		for j := i + 1; j < len(msens); j++ {
+			if i != j && !reject[j] {
+				nsen := msens[j]
 				// if i subset of j, put i in reject
 				if strings.Contains(nsen, psen) {
 					reject[i] = true
-					continue
+					break // i is rejected, no need to check more j's
 				}
 				// if j subset of i, put j in reject
 				if strings.Contains(psen, nsen) {
 					reject[j] = true
-					continue
 				}
 			}
 		}
 	}
 
-	sentences = [][]string{}
+	// Rebuild sentences slice in place
+	keepCount := len(msens) - len(reject)
+	result := make([][]string, 0, keepCount)
 	for i, sen := range msens {
-		if reject[i] {
-			continue
+		if !reject[i] {
+			result = append(result, strings.Fields(sen))
 		}
-		sentences = append(sentences, strings.Fields(sen))
+	}
+
+	// Copy back to original slice to maintain same reference
+	if len(result) < len(sentences) {
+		// Clear and rebuild the original slice
+		sentences = sentences[:0]
+		for _, sen := range result {
+			sentences = append(sentences, sen)
+		}
 	}
 }
 
