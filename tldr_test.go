@@ -138,7 +138,7 @@ var _ = Describe("tldr", func() {
 			It("Should return a string match with result_centrality.txt without error", func() {
 				summarizer = New()
 				summarizer.Algorithm = "centrality"
-				summarizer.Weighing = "pagerank"
+				summarizer.Weighing = "hamming"
 				sums, err := summarizer.Summarize(text, 3)
 				sum := strings.Join(sums, "\n\n")
 				Expect(err).To(BeNil())
@@ -151,7 +151,7 @@ var _ = Describe("tldr", func() {
 			It("Should return a string with one sentence without error", func() {
 				summarizer = New()
 				summarizer.Algorithm = "centrality"
-				summarizer.Weighing = "pagerank"
+				summarizer.Weighing = "hamming"
 				sums, err := summarizer.Summarize(text, 10000)
 				sum := strings.Join(sums, "\n\n")
 				Expect(err).To(BeNil())
